@@ -3,23 +3,30 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
+  align-items: center;
 }
 
 .wrapper {
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  gap: 20px;
 }
 
-.buttons {
+.form {
   display: flex;
-  gap: 40px;
+  flex-direction: column;
+  gap: 30px;
 }
 
-.button {
-  border: 1px solid white;
-  padding: 10px 20px;
+.input_area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.input {
+  padding: 5px 10px;
 }
