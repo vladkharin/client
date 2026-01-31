@@ -24,7 +24,7 @@ const getFromLocalStorage = (key: string, fallback: SERVER_TYPE) => {
 export const useGlobalStore = create<GLOBAL_STATE>()(
   devtools(
     () => ({
-      server: getFromLocalStorage("server", SERVER_TYPE.DEV),
+      server: getFromLocalStorage("server", SERVER_TYPE.PROD),
     }),
     {
       name: "global-store",

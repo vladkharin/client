@@ -2,7 +2,7 @@ import { useGlobalStore } from "@/store";
 import { SERVER_TYPE } from "@/store/modules/global";
 
 const DEV_API_URL = "http://localhost:3001/api";
-const PROD_API_URL = "https://api.domcratr.digital/api";
+const PROD_API_URL = "https://api.domcraft.digital/api";
 
 type OPTIONS = {
   method: string;
