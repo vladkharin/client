@@ -8,6 +8,7 @@ interface USER_STATE {
 
 interface USER_ACTIONS {
   login: (token: string, id: number) => void;
+  setToken: (token: string) => void;
 }
 
 export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
@@ -15,8 +16,16 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
     (set) => ({
       token: null,
       user_id: null,
-      login: (token, id) => set({ token, user_id: id }),
+      login: (token, id) => {
+        // Сохраняем в localStorage
+        if (typeof window !== "undefined") {
+          localStorage.setItem("auth_token", token);
+          localStorage.setItem("user_id", id.toString());
+        }
+        set({ token, user_id: id });
+      },
+      setToken: (token) => set({ token }),
     }),
-    { name: "user-store" }
-  )
+    { name: "user-store" },
+  ),
 );

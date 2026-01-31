@@ -1,0 +1,19 @@
+.chats_wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.chat_item {
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  max-width: 200px;
+  cursor: pointer;
+}
+
+.chat_item > div {
+  color: black;
+}

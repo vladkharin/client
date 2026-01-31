@@ -4,9 +4,11 @@ import { FORM_AUTHORIZATION, RESPONSE_AUTHORIZATION } from "@/types/types";
 import styles from "./page.module.css";
 import { ChangeEvent, FormEvent, useState } from "react";
 import { authorization } from "@/API/routes";
-import { useUserStore } from "@/store";
+import { useSocketStore, useUserStore } from "@/store";
+import { useRouter } from "next/navigation";
 
 export default function Page() {
+  const router = useRouter();
   const { login } = useUserStore();
   const [formState, setFormState] = useState<FORM_AUTHORIZATION>({
     username: "",
@@ -43,12 +45,17 @@ export default function Page() {
     const errorCount = 0;
 
     const dataObj = formState;
-    console.log(dataObj);
 
     if (errorCount == 0) {
       const response: RESPONSE_AUTHORIZATION = await authorization(JSON.stringify(dataObj));
 
       login(response.access_token, response.id);
+
+      // 3. Подключаемся к WebSocket с sessionId
+
+      useSocketStore.getState().connect(response.access_token, () => {
+        router.push("/main");
+      });
     }
   }
 }

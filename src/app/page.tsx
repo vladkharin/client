@@ -1,7 +1,24 @@
+"use client";
+
 import Image from "next/image";
 import styles from "./page.module.css";
 import Link from "next/link";
-export default async function Home() {
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useSocketStore, useUserStore } from "@/store";
+export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      useUserStore.getState().setToken(token);
+      useSocketStore.getState().connect(token, () => {
+        router.push("/main");
+      });
+    }
+  }, [router]);
+
   return (
     <section className={styles.section}>
       <div className={styles.wrapper}>

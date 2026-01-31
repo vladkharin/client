@@ -90,15 +90,10 @@ export default function Page() {
 
     const dataObj = formState;
 
-    console.log(dataObj);
     delete dataObj["password_confirmed"];
-    console.log(dataObj);
 
     if (errorCount == 0) {
-      const response = await registration(JSON.stringify(dataObj));
-
-      const data = await response.json();
-      console.log(data);
+      await registration(JSON.stringify(dataObj));
     }
   }
 }

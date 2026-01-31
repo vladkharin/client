@@ -1,4 +1,8 @@
-const API_URL = "http://localhost:3001/api";
+import { useGlobalStore } from "@/store";
+import { SERVER_TYPE } from "@/store/modules/global";
+
+const DEV_API_URL = "http://localhost:3001/api";
+const PROD_API_URL = "https://api.domcratr.digital/api";
 
 type OPTIONS = {
   method: string;
@@ -9,6 +13,7 @@ type OPTIONS = {
 };
 
 const f = async (method: string, data: string, url: string) => {
+  const { server } = useGlobalStore.getState();
   const options: OPTIONS = {
     method,
     headers: {
@@ -19,6 +24,8 @@ const f = async (method: string, data: string, url: string) => {
   if (data) {
     options.body = data;
   }
+
+  const API_URL = server == SERVER_TYPE.PROD ? PROD_API_URL : DEV_API_URL;
 
   const response = await fetch(API_URL + url, options);
 
