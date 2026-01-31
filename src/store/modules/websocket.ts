@@ -6,6 +6,7 @@ import { io, Socket } from "socket.io-client";
 import { generateId } from "@/utils/ids";
 import { requestAfterAuthorization } from "@/utils/requestAfterAuthorization";
 import { registerSocketListeners } from "@/lib/socketlisteners";
+import { SERVER_TYPE, useGlobalStore } from "./global";
 
 interface SocketState {
   socket: Socket | null;
@@ -15,7 +16,8 @@ interface SocketState {
   sendMessage: <T extends Record<string, unknown>>(event: string, payload: T) => void;
 }
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+const PROD_SOCKET_URL = "https//app.domcraft.digital";
+const DEV_SOCKET_URL = "http://localhost:3001";
 
 export const useSocketStore = create<SocketState>()(
   devtools((set, get) => ({
@@ -24,6 +26,9 @@ export const useSocketStore = create<SocketState>()(
 
     connect: (token: string, onReady?: () => void) => {
       if (get().isConnected) return;
+
+      const { server } = useGlobalStore.getState();
+      const SOCKET_URL = server == SERVER_TYPE.PROD ? PROD_SOCKET_URL : DEV_SOCKET_URL;
 
       const socket = io(SOCKET_URL, {
         query: { token },
