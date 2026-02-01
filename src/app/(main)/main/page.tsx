@@ -7,13 +7,19 @@ import styles from "./page.module.css";
 import WrapperMessages from "../components/wrapperMessages/WrapperMessages";
 import { useChatStore } from "@/store/modules/chat";
 import { useSocketStore } from "@/store";
+import { answerCall } from "@/lib/webrtcClient";
 
 export default function Page() {
   const { inComingCall } = useChatStore();
   const { sendMessage } = useSocketStore();
 
   const clickToCallAccept = () => {
-    sendMessage("call:accept", { conversationId: inComingCall });
+    const callerId = inComingCall?.callerId;
+    const conversationId = inComingCall?.conversationId;
+    if (conversationId && callerId) {
+      answerCall(callerId, conversationId);
+    }
+    sendMessage("call:accept", { conversationId: inComingCall?.conversationId });
   };
 
   const clickToCreateNewChat = () => {

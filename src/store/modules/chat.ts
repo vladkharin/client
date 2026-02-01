@@ -2,13 +2,26 @@ import { CHAT } from "@/types/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
+interface AcceptedCall {
+  callerId: number;
+  conversationId: number;
+}
+
+interface IncomingCall {
+  callerId: number;
+  conversationId: number;
+}
+
 interface CHAT_STATE {
   chats: CHAT[] | null;
   activeChat: CHAT | null;
-  inComingCall: number | null;
+  inComingCall: IncomingCall | null;
+  acceptedCall: AcceptedCall | null;
   setChats: (chats: CHAT[]) => void;
   setActiveChat: (chat: CHAT) => void;
-  setIncomingCall: (chat_id: number) => void;
+  setIncomingCall: (inComingCall: IncomingCall) => void;
+  setAcceptedCall: (call: AcceptedCall) => void;
+  clearAcceptedCall: () => void;
 }
 
 export const useChatStore = create<CHAT_STATE>()(
@@ -17,9 +30,12 @@ export const useChatStore = create<CHAT_STATE>()(
       chats: null,
       activeChat: null,
       inComingCall: null,
+      acceptedCall: null,
       setChats: (chats: CHAT[]) => set({ chats }),
       setActiveChat: (chat: CHAT) => set({ activeChat: chat }),
-      setIncomingCall: (chat_id: number) => set({ inComingCall: chat_id }),
+      setIncomingCall: (inComingCall: IncomingCall) => set({ inComingCall }),
+      setAcceptedCall: (call) => set({ acceptedCall: call }),
+      clearAcceptedCall: () => set({ acceptedCall: null }),
     }),
     {
       name: "chats",

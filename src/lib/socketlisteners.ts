@@ -20,16 +20,18 @@ export const registerSocketListeners = (socket: Socket) => {
   });
 
   socket.on("incoming_call", (data) => {
-    useChatStore.getState().setIncomingCall(data.conversationId);
+    useChatStore.getState().setIncomingCall({ callerId: data.from, conversationId: data.conversationId });
   });
 
   socket.on("call_accepted", (data) => {
     console.log("✅ Звонок принят:", data);
-    // Теперь caller инициирует WebRTC
     initiateCall(data.by, data.conversationId);
+    useChatStore.getState().setAcceptedCall({
+      callerId: data.by,
+      conversationId: data.conversationId,
+    });
   });
 
-  // Получение WebRTC-сигналов (offer, answer, ice)
   socket.on("webrtc_signal", (data) => {
     console.log("📡 WebRTC сигнал от", data.from, ":", data.data);
     handleWebRtcSignal(data.from, data.data);

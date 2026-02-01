@@ -33,60 +33,58 @@ function isWebRtcOfferAnswer(obj: unknown): obj is WebRtcOfferAnswer {
 }
 
 function isWebRtcIceCandidate(obj: unknown): obj is WebRtcIceCandidate {
-  return (
-    typeof obj === "object" && obj !== null && "candidate" in obj && typeof obj.candidate === "string"
-    // sdpMid и sdpMLineIndex опциональны
-  );
+  return typeof obj === "object" && obj !== null && "candidate" in obj && typeof obj.candidate === "string";
 }
-
-// Универсальная функция для отображения удалённого видео
-const setupRemoteVideo = (stream: MediaStream) => {
-  const remoteVideo = document.getElementById("remoteVideo") as HTMLVideoElement;
-  if (remoteVideo) {
-    remoteVideo.srcObject = stream;
-  }
-};
 
 // Инициатор звонка (caller)
 export const initiateCall = async (calleeId: number, conversationId: number) => {
   cleanup();
   currentConversationId = conversationId;
 
-  peerConnection = new RTCPeerConnection(configuration);
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  try {
+    peerConnection = new RTCPeerConnection(configuration);
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-  localStream.getTracks().forEach((track) => peerConnection?.addTrack(track, localStream!));
+    // Добавляем только аудио-треки
+    localStream.getTracks().forEach((track) => {
+      peerConnection?.addTrack(track, localStream!);
+    });
 
-  // Показываем своё видео
-  const localVideo = document.getElementById("localVideo") as HTMLVideoElement;
-  if (localVideo) localVideo.srcObject = localStream;
-
-  // Когда приходит видео от собеседника
-  peerConnection.ontrack = (event) => {
-    setupRemoteVideo(event.streams[0]);
-  };
-
-  // Отправка ICE-кандидатов
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate && peerConnection) {
-      useSocketStore.getState().sendMessage("call:signal", {
-        targetUserId: calleeId,
-        data: event.candidate,
-        conversationId,
+    // Обработка входящего аудио
+    peerConnection.ontrack = (event) => {
+      console.log("🎧 Получен аудио-поток:", event.streams[0]);
+      const remoteAudio = new Audio();
+      remoteAudio.srcObject = event.streams[0];
+      remoteAudio.play().catch((e) => {
+        console.warn("Авто-воспроизведение аудио заблокировано:", e);
+        // Можно показать кнопку "Разрешить звук"
       });
-    }
-  };
+    };
 
-  // Создаём offer
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
+    // Отправка ICE-кандидатов
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate && peerConnection) {
+        useSocketStore.getState().sendMessage("call:signal", {
+          targetUserId: calleeId,
+          data: event.candidate,
+          conversationId,
+        });
+      }
+    };
 
-  // Отправляем offer через WebSocket
-  useSocketStore.getState().sendMessage("call:signal", {
-    targetUserId: calleeId,
-    data: offer,
-    conversationId,
-  });
+    // Создаём offer
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    useSocketStore.getState().sendMessage("call:signal", {
+      targetUserId: calleeId,
+      data: offer,
+      conversationId,
+    });
+  } catch (error) {
+    console.error("❌ Не удалось начать аудиозвонок:", error);
+    cleanup();
+  }
 };
 
 // Получатель звонка (callee)
@@ -94,32 +92,52 @@ export const answerCall = async (callerId: number, conversationId: number) => {
   cleanup();
   currentConversationId = conversationId;
 
-  peerConnection = new RTCPeerConnection(configuration);
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  try {
+    peerConnection = new RTCPeerConnection(configuration);
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-  localStream.getTracks().forEach((track) => peerConnection?.addTrack(track, localStream!));
+    localStream.getTracks().forEach((track) => {
+      peerConnection?.addTrack(track, localStream!);
+    });
 
-  const localVideo = document.getElementById("localVideo") as HTMLVideoElement;
-  if (localVideo) localVideo.srcObject = localStream;
-
-  peerConnection.ontrack = (event) => {
-    setupRemoteVideo(event.streams[0]);
-  };
-
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate && peerConnection) {
-      useSocketStore.getState().sendMessage("call:signal", {
-        targetUserId: callerId,
-        data: event.candidate,
-        conversationId,
+    peerConnection.ontrack = (event) => {
+      console.log("🎧 Получен аудио-поток:", event.streams[0]);
+      const remoteAudio = new Audio();
+      remoteAudio.srcObject = event.streams[0];
+      remoteAudio.play().catch((e) => {
+        console.warn("Авто-воспроизведение аудио заблокировано:", e);
       });
-    }
-  };
+    };
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate && peerConnection) {
+        useSocketStore.getState().sendMessage("call:signal", {
+          targetUserId: callerId,
+          data: event.candidate,
+          conversationId,
+        });
+      }
+    };
+
+    // 🔥 КРИТИЧЕСКИ ВАЖНО: дождаться offer, затем создать и отправить answer
+    // Но на самом деле — answer создаётся в handleWebRtcSignal при получении offer
+    // Поэтому здесь достаточно только подготовить peerConnection
+    // Однако убедитесь, что handleWebRtcSignal вызывается ДО этого
+  } catch (error) {
+    console.error("❌ Не удалось ответить на аудиозвонок:", error);
+    cleanup();
+  }
 };
 
-// Обработка всех WebRTC-сигналов (offer, answer, ice-candidate)
+// Обработка всех WebRTC-сигналов
 export const handleWebRtcSignal = async (fromId: number, signal: unknown) => {
-  if (!peerConnection || !currentConversationId) return;
+  console.log("🔧 peerConnection exists:", !!peerConnection);
+  console.log("📥 Signal:", signal);
+
+  if (!peerConnection || !currentConversationId) {
+    console.warn("⚠️ Пропущен сигнал: peerConnection не готов");
+    return;
+  }
 
   try {
     if (isWebRtcOfferAnswer(signal)) {
@@ -136,7 +154,7 @@ export const handleWebRtcSignal = async (fromId: number, signal: unknown) => {
 
         useSocketStore.getState().sendMessage("call:signal", {
           targetUserId: fromId,
-          answer,
+          data: answer,
           conversationId: currentConversationId,
         });
       }
@@ -165,11 +183,4 @@ export const cleanup = () => {
   peerConnection = null;
   localStream = null;
   currentConversationId = null;
-
-  // Очищаем видео — явно указываем тип
-  const localVideo = document.getElementById("localVideo") as HTMLVideoElement | null;
-  const remoteVideo = document.getElementById("remoteVideo") as HTMLVideoElement | null;
-
-  if (localVideo) localVideo.srcObject = null;
-  if (remoteVideo) remoteVideo.srcObject = null;
 };
