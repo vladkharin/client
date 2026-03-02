@@ -10,14 +10,15 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("auth_token");
+    console.log(token);
     if (token) {
       useUserStore.getState().setToken(token);
       useSocketStore.getState().connect(token, () => {
         router.push("/main");
       });
     }
-  }, [router]);
+  }, []);
 
   return (
     <section className={styles.section}>

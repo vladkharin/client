@@ -10,7 +10,11 @@ export default function ChatList() {
   };
   return (
     <div>
-      <h2>Чаты</h2>
+      <div className={styles.titles}>
+        <p>Чаты</p>
+
+        <button>Поиск</button>
+      </div>
       {chats?.length === 0 ? (
         <p>Нет чатов</p>
       ) : (

@@ -14,6 +14,7 @@ interface SocketState {
   connect: (token: string, onReady?: () => void) => void;
   disconnect: () => void;
   sendMessage: <T extends Record<string, unknown>>(event: string, payload: T) => void;
+  pendingRequests: Map<string, { resolve: (any) => void; reject: (err: Error) => void }>;
 }
 
 const PROD_SOCKET_URL = "https://app.domcraft.digital";
@@ -34,6 +35,18 @@ export const useSocketStore = create<SocketState>()(
         query: { token },
         transports: ["websocket"],
         autoConnect: false,
+      });
+
+      socket.onAny((event, data) => {
+        if (data?.id && get().pendingRequests.has(data.id)) {
+          const { resolve, reject } = get().pendingRequests.get(data.id)!;
+          if (data.error) {
+            reject(new Error(data.error));
+          } else {
+            resolve(data.response);
+          }
+          get().pendingRequests.delete(data.id);
+        }
       });
 
       socket.on("auth:ready", () => {
@@ -71,16 +84,23 @@ export const useSocketStore = create<SocketState>()(
         set({ socket: null, isConnected: false });
       }
     },
+    pendingRequests: new Map(),
 
-    sendMessage: <T extends Record<string, unknown>>(event: string, payload: T) => {
-      const { socket } = get();
-      if (socket?.connected) {
-        // Добавляем id к payload
-        const payloadWithId = { ...payload, id: generateId() };
-        socket.emit(event, payloadWithId);
-      } else {
-        console.warn("⚠️ Socket not connected");
-      }
+    sendMessage: <T extends Record<string, unknown>>(event: string, payload: T): Promise<any> => {
+      return new Promise((resolve, reject) => {
+        const id = generateId();
+        const { socket } = get();
+        if (!socket?.connected) {
+          reject(new Error("Socket not connected"));
+          return;
+        }
+
+        // Сохраняем промис
+        get().pendingRequests.set(id, { resolve, reject });
+
+        // Отправляем запрос
+        socket.emit(event, { ...payload, id });
+      });
     },
   })),
 );

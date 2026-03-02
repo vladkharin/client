@@ -1,4 +1,8 @@
 .wrapper {
+  height: 100vh;
+  width: 100vw;
   display: flex;
   gap: 10px;
+
+  position: relative;
 }

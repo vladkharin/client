@@ -1,4 +1,11 @@
+.titles {
+  display: flex;
+  justify-content: space-between;
+}
+
 .chats_wrapper {
+  height: 100vh;
+  width: 200px;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -8,6 +15,8 @@
   background: white;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 5px;
 
   max-width: 200px;
