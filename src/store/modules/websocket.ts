@@ -13,8 +13,8 @@ interface SocketState {
   isConnected: boolean;
   connect: (token: string, onReady?: () => void) => void;
   disconnect: () => void;
-  sendMessage: <T extends Record<string, unknown>>(event: string, payload: T) => void;
-  pendingRequests: Map<string, { resolve: (any) => void; reject: (err: Error) => void }>;
+  sendMessage: <T extends Record<string, unknown>>(event: string, payload: T) => Promise<any>;
+  pendingRequests: Map<string, { resolve: (value: any) => void; reject: (err: Error) => void }>;
 }
 
 const PROD_SOCKET_URL = "https://app.domcraft.digital";

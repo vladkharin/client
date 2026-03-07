@@ -18,7 +18,7 @@ export default function Home() {
         router.push("/main");
       });
     }
-  }, []);
+  }, [router]);
 
   return (
     <section className={styles.section}>

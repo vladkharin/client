@@ -58,7 +58,7 @@ function setupSendTransport(transport: mediasoup.types.Transport, conversationId
     useSocketStore
       .getState()
       .sendMessage("mediasoup:produce", { conversationId, transportId: transport.id, kind, rtpParameters })
-      .then((data: any) => {
+      .then((data) => {
         console.log("✅ Producer создан:", data.id);
         callback({ id: data.id });
       })
@@ -118,10 +118,14 @@ async function produceAudio() {
     console.error("💥 produceAudio failed:", e);
     // Для отладки: попробуем без track
     try {
-      const producer = await sendTransport.produce({ kind: "audio" });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const track = stream.getAudioTracks()[0];
+
+      // ✅ Правильно: передаём track
+      const producer = await sendTransport.produce({ track });
       console.log("✅ Producer (без track) создан:", producer.id);
-    } catch (e2) {
-      console.error("❌ Даже без track — провал");
+    } catch (e) {
+      console.error("❌ Даже без track — провал" + e);
     }
   }
 }
@@ -132,7 +136,7 @@ export const consumeProducer = async (conversationId: number, producerId: string
 
   try {
     const { sendMessage } = useSocketStore.getState();
-    const response: any = await sendMessage("mediasoup:consume", {
+    const response = await sendMessage("mediasoup:consume", {
       conversationId,
       producerId,
       rtpCapabilities: device.rtpCapabilities,

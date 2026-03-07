@@ -7,7 +7,8 @@ import { useSocketStore } from "@/store";
  * Регистрирует все обработчики событий от сервера
  */
 export const registerSocketListeners = (socket: Socket) => {
-  const handleResponse = (event: string) => (data: any) => {
+  const handleResponse = (event: string) => (data: { id: string; response?: unknown; error?: string }) => {
+    console.log(event);
     const { id, response, error } = data;
     const { pendingRequests } = useSocketStore.getState();
 
@@ -18,7 +19,7 @@ export const registerSocketListeners = (socket: Socket) => {
       if (error) {
         reject(new Error(error));
       } else {
-        resolve(response); // ← именно response!
+        resolve(response);
       }
     }
   };
