@@ -2,11 +2,16 @@ import { useChatStore } from "@/store/modules/chat";
 import { Socket } from "socket.io-client";
 import { consumeProducer, joinMediasoupRoom } from "./mediasoupManager";
 import { useSocketStore } from "@/store";
+import { useFinderStore, USERS_LIST } from "@/store/modules/finderStore";
+import { REQUEST, useUserStore } from "@/store/modules/user";
+import { NOTIFICATIONS } from "@/commands/commands";
 
 /**
  * Регистрирует все обработчики событий от сервера
  */
 export const registerSocketListeners = (socket: Socket) => {
+  const { setUsers } = useFinderStore.getState();
+  const { setFriendRequest, addFriendRequest } = useUserStore.getState();
   const handleResponse = (event: string) => (data: { id: string; response?: unknown; error?: string }) => {
     console.log(event);
     const { id, response, error } = data;
@@ -73,4 +78,20 @@ export const registerSocketListeners = (socket: Socket) => {
     console.log("CloseOperation producer:", data.producerId);
     // Можно добавить удаление из UI
   });
+
+  socket.on("users:find", (data: { id: number; response: USERS_LIST[] }) => {
+    console.log("Получены совпадения", data);
+    setUsers(data.response);
+  });
+
+  socket.on("friend:incoming", (data: { id: number; response: REQUEST[] }) => {
+    setFriendRequest(data.response, "incoming");
+  });
+
+  socket.on(
+    NOTIFICATIONS.friendRequestReceived,
+    (data: { createdAt: string; friendshipId: number; from: { id: number; username: string } }) => {
+      addFriendRequest(data.from, "incoming");
+    },
+  );
 };

@@ -47,20 +47,6 @@ export default function WrapperzMessages() {
             <button onClick={() => clickToCall()}>Позвонить</button>
           </div>
 
-          {/* 🔊 Явный аудио-плеер для отладки */}
-          <audio
-            ref={audioRef}
-            controls
-            style={{
-              width: "100%",
-              marginTop: "10px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-            }}
-          >
-            Ваш браузер не поддерживает элемент audio.
-          </audio>
-
           <div className={styles.wrapper_messages}>
             <div>Сообщения</div>
             <div>В будущих обновлениях</div>

@@ -5,4 +5,12 @@
   gap: 10px;
 
   position: relative;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  display: flex;
+  gap: 10px;
 }

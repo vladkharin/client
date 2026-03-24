@@ -1,19 +1,20 @@
 import { useChatStore } from "@/store/modules/chat";
 import styles from "./chatList.module.css";
 import { CHAT } from "@/types/types";
+import { useUserStore } from "@/store";
 
 export default function ChatList() {
   const { chats, setActiveChat } = useChatStore();
+  const { user_id } = useUserStore();
 
   const chatClicked = (chat: CHAT) => {
     setActiveChat(chat);
   };
+
   return (
     <div>
       <div className={styles.titles}>
         <p>Чаты</p>
-
-        <button>Поиск</button>
       </div>
       {chats?.length === 0 ? (
         <p>Нет чатов</p>
@@ -22,7 +23,7 @@ export default function ChatList() {
           {chats?.map((chat) => {
             // Определяем собеседника (в DIRECT-чате — другой участник)
             const otherMember = chat.members.find(
-              (member) => member.user.username !== "Vladikkkk23", // ← ваш username
+              (member) => member.userId !== user_id, // ← ваш username
             );
 
             return (

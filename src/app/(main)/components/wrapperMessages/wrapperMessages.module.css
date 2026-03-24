@@ -1,6 +1,6 @@
 .wrapper {
-  height: 100vh;
-  width: calc(100vw - 200px);
+  height: calc(100vh - 60px);
+  width: calc(100vw - 220px);
   border: 1px solid white;
 
   display: flex;

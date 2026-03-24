@@ -7,17 +7,28 @@ import styles from "./page.module.css";
 import WrapperMessages from "../components/wrapperMessages/WrapperMessages";
 import { useChatStore } from "@/store/modules/chat";
 import CallModal from "../components/callModal/CallModal";
+import FinderModal from "../components/finderModal/FinderModal";
+import { useFinderStore, useUserStore } from "@/store";
+import IncomingRequestsModal from "../components/friendRequests/IncomingRequests";
+import MainHeader from "../components/mainHeader/MainHeader";
 
 export default function Page() {
   const { inComingCall } = useChatStore();
+  const { state } = useFinderStore();
+  const { friendRequestsState } = useUserStore();
 
   return (
     <AuthGuard>
       <div className={styles.wrapper}>
-        <ChatList />
-        <WrapperMessages />
+        <MainHeader />
+        <div className={styles.content}>
+          <ChatList />
+          <WrapperMessages />
+        </div>
 
         {inComingCall && <CallModal />}
+        {state && <FinderModal />}
+        {friendRequestsState && <IncomingRequestsModal />}
       </div>
     </AuthGuard>
   );
