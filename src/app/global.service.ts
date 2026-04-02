@@ -1,7 +1,7 @@
 import { useUserStore } from "@/store";
 import { useChatStore } from "@/store/modules/chat";
 
-export const findUserNickname = (conversationId: number) => {
+export const findUserusername = (conversationId: number) => {
   const { chats } = useChatStore.getState();
   const { user_id } = useUserStore.getState();
 

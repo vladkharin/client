@@ -2,7 +2,7 @@ import { useFinderStore, useUserStore } from "@/store";
 import styles from "./header.module.css";
 
 export default function MainHeader() {
-  const { logout, setFriendRequestState, friendRequests } = useUserStore();
+  const { logout, setFriendRequestState, friendRequests, setFriendListState } = useUserStore();
   const { setState } = useFinderStore();
 
   const openFinderModal = () => {
@@ -16,10 +16,15 @@ export default function MainHeader() {
   const openFriendRequests = () => {
     setFriendRequestState(true);
   };
+
+  const openFriendListModal = () => {
+    setFriendListState(true);
+  };
   return (
     <div className={styles.wrapper}>
       <button onClick={() => openFinderModal()}>Поиск</button>
       {friendRequests.incoming.length > 0 && <button onClick={() => openFriendRequests()}>Заявки в друзья</button>}
+      <button onClick={() => openFriendListModal()}>Друзья</button>
       <button onClick={() => logOutOfYourAccount()}>Выход</button>
     </div>
   );

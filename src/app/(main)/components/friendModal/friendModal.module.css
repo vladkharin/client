@@ -1,0 +1,30 @@
+.background {
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+  top: 0;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.wrapper {
+  height: 600px;
+  width: 300px;
+  background: grey;
+  border: 2px solid black;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.input {
+  margin-top: 5px;
+  width: 80%;
+  height: 40px;
+  border-radius: 6px;
+}

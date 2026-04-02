@@ -2,11 +2,14 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { useSocketStore } from "../index"; // 👈 Импортируем сокет-стор
+import { FriendListItem } from "@/types/types";
 
 interface USER_STATE {
   token: string | null;
   user_id: number | null;
   isHydrated: boolean;
+  friendList: FriendListItem[] | null;
+  friendListState: boolean;
   friendRequests: {
     outgoing: REQUEST[];
     incoming: REQUEST[];
@@ -24,18 +27,23 @@ interface USER_ACTIONS {
   setToken: (token: string) => void;
   hydrate: () => void;
   logout: () => void; // 👈 Новый метод
+  setFriendList: (list: FriendListItem[]) => void;
+  addFriend: (friend: FriendListItem) => void;
   setFriendRequest: (request: REQUEST[] | REQUEST, type: "outgoing" | "incoming") => void;
   setFriendRequestState: (state: boolean) => void;
+  setFriendListState: (state: boolean) => void;
   addFriendRequest: (request: REQUEST, type: "outgoing" | "incoming") => void;
+  removeFriendRequest: (id: number, type: "outgoing" | "incoming") => void;
 }
 
 export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
   persist(
     devtools(
-      (set, get) => ({
+      (set) => ({
         token: null,
         user_id: null,
         isHydrated: false,
+        friendList: null,
         friendRequestsState: false,
         friendRequests: {
           outgoing: [],
@@ -51,9 +59,7 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
         logout: () => {
           // 1. Отключаем сокет (если подключен)
           const socketState = useSocketStore.getState();
-          if (socketState.isConnected || socketState.socket?.connected) {
-            socketState.disconnect();
-          }
+          socketState.disconnect();
 
           // 2. Очищаем состояние (но НЕ сбрасываем isHydrated!)
           set({ token: null, user_id: null });
@@ -82,7 +88,21 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
               [type]: [request, ...state.friendRequests[type]],
             },
           })),
+        removeFriendRequest: (id: number, type: "outgoing" | "incoming") =>
+          set((state) => ({
+            friendRequests: {
+              ...state.friendRequests,
+              [type]: state.friendRequests[type].filter((req) => req.id !== id),
+            },
+          })),
         setFriendRequestState: (state: boolean) => set({ friendRequestsState: state }),
+        setFriendListState: (state: boolean) => set({ friendListState: state }),
+
+        setFriendList: (list: FriendListItem[]) => set({ friendList: list }),
+        addFriend: (friend: FriendListItem) =>
+          set((state) => ({
+            friendList: state.friendList ? [...state.friendList, friend] : [friend],
+          })),
       }),
       { name: "user-store" },
     ),

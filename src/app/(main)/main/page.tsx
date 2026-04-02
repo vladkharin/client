@@ -11,11 +11,12 @@ import FinderModal from "../components/finderModal/FinderModal";
 import { useFinderStore, useUserStore } from "@/store";
 import IncomingRequestsModal from "../components/friendRequests/IncomingRequests";
 import MainHeader from "../components/mainHeader/MainHeader";
+import FriendModal from "../components/friendModal/FriendModal";
 
 export default function Page() {
   const { inComingCall } = useChatStore();
   const { state } = useFinderStore();
-  const { friendRequestsState } = useUserStore();
+  const { friendRequestsState, friendListState } = useUserStore();
 
   return (
     <AuthGuard>
@@ -29,6 +30,7 @@ export default function Page() {
         {inComingCall && <CallModal />}
         {state && <FinderModal />}
         {friendRequestsState && <IncomingRequestsModal />}
+        {friendListState && <FriendModal />}
       </div>
     </AuthGuard>
   );
