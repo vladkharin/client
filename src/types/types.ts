@@ -42,10 +42,11 @@ export interface CHAT {
   avatar: string | null;
   ownerId: number | null;
   createdAt: string; // ISO 8601
-  updatedAt: string; // ISO 8601
-  dmHash: string;
+  updatedAt?: string; // ISO 8601
+  dmHash?: string;
   members: Member[];
   isTemporary?: boolean;
+  unreadCount: number;
 }
 
 export type FriendStatus = "PENDING" | "ACCEPTED" | "BLOCKED"; // 👈 Расширьте по необходимости

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { FormEvent, useEffect } from "react";
 import styles from "./finderModal.module.css";
 import { useFinderStore, useSocketStore } from "@/store";
 
@@ -9,9 +9,10 @@ export default function FinderModal() {
   useEffect(() => {
     console.log(usersList);
   });
-  const findFriend = (e) => {
-    if (e.target.value) {
-      sendMessage("users:find", { name: e.target.value });
+  const findFriend = (e: FormEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement;
+    if (target.value) {
+      sendMessage("users:find", { name: target.value });
     } else {
       setUsers(null);
     }

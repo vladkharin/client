@@ -90,7 +90,16 @@ export const useChatStore = create<CHAT_STATE>()(
           name: username,
           avatar: null,
           ownerId: userId,
-          members: [{ userId, username }],
+          members: [
+            {
+              userId,
+              username,
+              id: Math.floor(Math.random() * 1000000), // или какой-то временный ID
+              conversationId: 0,
+              joinedAt: new Date().toISOString(),
+              lastReadAt: new Date().toISOString(),
+            } as CHAT["members"][number],
+          ],
           isTemporary: true, // 👈 Помечаем как временный
           createdAt: new Date().toISOString(),
           unreadCount: 0,

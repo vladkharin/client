@@ -31,6 +31,7 @@ export default function WrapperzMessages() {
         isTemporary: activeChat.isTemporary,
         targetUserId: activeChat.isTemporary ? activeChat.ownerId : undefined,
       });
+      if (!inputRef.current) return;
       inputRef.current.value = ""; // Очищаем после отправки
     }
   };
