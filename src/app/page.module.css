@@ -5,6 +5,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  background: radial-gradient(circle at center, #1a1d23 0%, #0a0b0d 100%);
 }
 
 .wrapper {
@@ -12,14 +13,65 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 60px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Стилизация текстового логотипа вместо картинки Next.js */
+.logo_text {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 40px;
+  letter-spacing: -1px;
+}
+
+.logo_text span {
+  color: var(--primary); /* Оранжевый Hive */
 }
 
 .buttons {
   display: flex;
-  gap: 40px;
+  gap: 20px;
 }
 
 .button {
-  border: 1px solid white;
-  padding: 10px 20px;
+  text-decoration: none;
+  padding: 14px 28px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 15px;
+  transition: all var(--transition);
+  text-align: center;
+  min-width: 140px;
+}
+
+/* Кнопка регистрации — основная (оранжевая) */
+.button_primary {
+  background-color: var(--primary);
+  color: white;
+  border: 1px solid var(--primary);
+}
+
+.button_primary:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 0 20px var(--primary-glow);
+  transform: translateY(-2px);
+}
+
+/* Кнопка авторизации — вторичная (прозрачная с бордером) */
+.button_secondary {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.button_secondary:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--text-secondary);
+  transform: translateY(-2px);
 }

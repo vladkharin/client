@@ -22,10 +22,18 @@ export default function MainHeader() {
   };
   return (
     <div className={styles.wrapper}>
-      <button onClick={() => openFinderModal()}>Поиск</button>
-      {friendRequests.incoming.length > 0 && <button onClick={() => openFriendRequests()}>Заявки в друзья</button>}
-      <button onClick={() => openFriendListModal()}>Друзья</button>
-      <button onClick={() => logOutOfYourAccount()}>Выход</button>
+      {/* Логотип или название можно добавить сюда */}
+      <button onClick={openFinderModal}>Поиск</button>
+
+      {friendRequests.incoming.length > 0 && (
+        <button className={styles.badge_button} onClick={openFriendRequests}>
+          Заявки в друзья ({friendRequests.incoming.length})
+        </button>
+      )}
+
+      <button onClick={openFriendListModal}>Друзья</button>
+
+      <button onClick={logOutOfYourAccount}>Выход</button>
     </div>
   );
 }

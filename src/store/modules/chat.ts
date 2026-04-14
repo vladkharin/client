@@ -30,7 +30,7 @@ interface CHAT_STATE {
   setChats: (chats: CHAT[]) => void;
   addChat: (chat: CHAT) => void;
   setActiveChat: (chat: CHAT) => void;
-  setIncomingCall: (inComingCall: IncomingCall) => void;
+  setIncomingCall: (inComingCall: IncomingCall | null) => void;
   setAcceptedCall: (call: AcceptedCall) => void;
   clearAcceptedCall: () => void;
   setMessages: (messages: MessageChat[]) => void;
@@ -51,7 +51,7 @@ export const useChatStore = create<CHAT_STATE>()(
       acceptedCall: null,
       setChats: (chats: CHAT[]) => set({ chats }),
       setActiveChat: (chat: CHAT) => set({ activeChat: chat }),
-      setIncomingCall: (inComingCall: IncomingCall) => set({ inComingCall }),
+      setIncomingCall: (inComingCall: IncomingCall | null) => set({ inComingCall }),
       setAcceptedCall: (call) => set({ acceptedCall: call }),
       clearAcceptedCall: () => set({ acceptedCall: null }),
       setMessages: (messages: MessageChat[]) => set({ messages }),

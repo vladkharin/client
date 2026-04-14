@@ -1,9 +1,67 @@
 .wrapper {
   width: 100%;
-  height: 60px;
+  height: 64px; /* Чуть выше для солидности */
 
   display: flex;
-  gap: 10px;
+  align-items: center; /* Центрируем кнопки по вертикали */
+  padding: 0 24px;
+  gap: 12px;
 
-  background: red;
+  /* Темный фон из переменных + легкая прозрачность */
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+
+  /* Фиксация сверху (опционально) */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+/* Стили для кнопок навигации */
+.wrapper button {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition);
+}
+
+.wrapper button:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-element);
+}
+
+/* Выделяем важные кнопки (например, Поиск или Заявки) */
+.wrapper button:first-child {
+  color: var(--primary);
+  border-color: var(--primary-glow);
+}
+
+.wrapper button:first-child:hover {
+  background-color: var(--primary-glow);
+  border-color: var(--primary);
+}
+
+/* Кнопка выхода (красная/тусклая для безопасности) */
+.wrapper button:last-child {
+  margin-left: auto; /* Уводит "Выход" в правую сторону */
+  color: #ef4444; /* Оставим красный только здесь */
+  opacity: 0.7;
+}
+
+.wrapper button:last-child:hover {
+  opacity: 1;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Индикатор заявок (пульсирующий оранжевый) */
+.badge_button {
+  color: var(--primary) !important;
+  font-weight: 600 !important;
+  position: relative;
 }

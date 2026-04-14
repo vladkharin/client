@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react"; // добавили useRef
-import { useSocketStore } from "@/store";
+import { useSocketStore, useUserStore } from "@/store";
 import { useChatStore } from "@/store/modules/chat";
 import { useCallStore } from "@/store";
 import styles from "./wrapperMessages.module.css";
@@ -11,6 +11,7 @@ export default function WrapperzMessages() {
   const { activeChat, messages } = useChatStore();
   const { sendMessage } = useSocketStore();
   const { removeProducer } = useCallStore();
+  const { user_id } = useUserStore();
 
   const inputRef = useRef<HTMLInputElement>(null); // Реф для инпута
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -49,30 +50,48 @@ export default function WrapperzMessages() {
   return (
     <div className={styles.wrapper}>
       {activeChat === null ? (
-        <div>Нет активного чата</div>
+        <div style={{ margin: "auto", color: "var(--text-secondary)" }}>Выберите чат для начала общения</div>
       ) : (
         <>
           <div className={styles.upper_menu}>
             <div className={styles.left_side}>
               <div className={styles.avatar}></div>
+              <span style={{ fontWeight: 600 }}>{activeChat.name || "Чат"}</span>
             </div>
             <button onClick={clickToCall}>Позвонить</button>
           </div>
 
           <div className={styles.wrapper_messages}>
-            <div>Сообщения</div>
             <div className={styles.scroller_messages}>
               {messages &&
-                messages.map((message) => (
-                  <div className={styles.message} key={message.id}>
-                    <div>{message.content}</div>
-                    <div>{message.sender.username}</div>
-                  </div>
-                ))}
-              {/* Привязываем реф */}
-              <input ref={inputRef} type="text" placeholder="Введите сообщение..." />
-              {/* Кнопка отправки */}
-              <button onClick={handleSend}>Отправить</button>
+                messages.map((message) => {
+                  const isSelf = message.sender.id === user_id;
+
+                  return (
+                    <div
+                      key={message.id}
+                      // 2. Здесь должны быть ОБА класса: общий .message и специфичный (self или other)
+                      className={`${styles.message} ${isSelf ? styles.message_self : styles.message_other}`}
+                    >
+                      {/* 3. Добавь эти классы для текста и автора, чтобы работал цвет из CSS */}
+                      <div className={styles.message_content}>{message.content}</div>
+                      <div className={styles.message_author}>{isSelf ? "вы" : message.sender.username}</div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Инпут вынесен из скроллера вниз */}
+            <div className={styles.input_container}>
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Напишите сообщение..."
+                onKeyDown={(e) => e.key === "Enter" && handleSend()} // Отправка по Enter
+              />
+              <button className={styles.send_button} onClick={handleSend}>
+                Отправить
+              </button>
             </div>
           </div>
           <audio ref={audioRef} autoPlay />

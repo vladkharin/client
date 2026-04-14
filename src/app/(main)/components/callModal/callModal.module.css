@@ -1,21 +1,107 @@
 .background {
-  position: absolute;
+  position: fixed;
   width: 100vw;
   height: 100vh;
   top: 0;
   left: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 2000;
 }
 
 .wrapper {
-  background: orange;
-  width: 200px;
-  height: 200px;
+  background-color: var(--bg-card);
+  width: 320px;
+  padding: 40px 20px;
+  border-radius: 24px;
+  border: 1px solid var(--primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+  box-shadow: 0 0 30px var(--primary-glow);
+  animation: pulse 2s infinite; /* Пульсация */
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 20px var(--primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 40px var(--primary-glow);
+  }
+  100% {
+    box-shadow: 0 0 20px var(--primary-glow);
+  }
+}
+
+.avatar_placeholder {
+  width: 80px;
+  height: 80px;
+  background-color: var(--bg-element);
+  border-radius: 50%;
+  border: 2px solid var(--primary);
   display: flex;
   justify-content: center;
   align-items: center;
+  font-size: 32px;
+}
+
+.caller_info {
+  text-align: center;
+}
+
+.caller_info h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+}
+
+.status {
+  color: var(--primary);
+  font-size: 14px;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+.button_group {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  justify-content: center;
+}
+
+.accept_btn {
+  background-color: #22c55e !important; /* Зеленый для ответа */
+  color: white !important;
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.accept_btn:hover {
+  background-color: #16a34a !important;
+  transform: scale(1.05);
+}
+
+.decline_btn {
+  background-color: #ef4444 !important; /* Красный для сброса */
+  color: white !important;
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.decline_btn:hover {
+  background-color: #dc2626 !important;
+  transform: scale(1.05);
 }

@@ -5,20 +5,92 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  background-color: var(--bg-main);
+  /* Можно добавить радиальный градиент для глубины */
+  background: radial-gradient(circle at center, #1a1d23 0%, #0a0b0d 100%);
+}
+
+.logo_title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 30px;
+  letter-spacing: 1px;
+}
+
+.logo_title span {
+  color: var(--primary);
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 25px;
+  width: 360px;
+  padding: 40px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
 
 .input_area {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: 4px;
 }
 
 .input {
-  padding: 5px 10px;
+  background-color: var(--bg-element);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  color: var(--text-primary);
+  font-size: 15px;
+  outline: none;
+  transition: all var(--transition);
+}
+
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+.submit_btn {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 16px;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all var(--transition);
+}
+
+.submit_btn:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 0 15px var(--primary-glow);
+  transform: translateY(-1px);
+}
+
+.submit_btn:active {
+  transform: translateY(0);
+}
+
+.logo_link {
+  text-decoration: none;
+  transition: opacity var(--transition);
+}
+
+.logo_link:hover {
+  opacity: 0.8; /* Легкий эффект при наведении, чтобы юзер понял, что это ссылка */
 }

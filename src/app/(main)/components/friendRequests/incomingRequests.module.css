@@ -1,30 +1,105 @@
 .background {
-  position: absolute;
+  position: fixed;
   width: 100vw;
   height: 100vh;
   top: 0;
   left: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 1000;
 }
 
 .wrapper {
-  height: 600px;
-  width: 300px;
-  background: grey;
-  border: 2px solid black;
+  height: 500px;
+  width: 400px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  box-sizing: border-box;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.close_btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: color var(--transition);
+}
+
+.close_btn:hover {
+  color: #ef4444;
+}
+
+.requestList {
+  flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  align-items: center;
 }
 
-.input {
-  margin-top: 5px;
-  width: 80%;
-  height: 40px;
-  border-radius: 6px;
+.requestItem {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--bg-element);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.requestItem p {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.acceptButton {
+  background-color: var(--primary) !important;
+  color: #fff !important;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.acceptButton:hover {
+  background-color: var(--primary-hover) !important;
+  box-shadow: 0 0 10px var(--primary-glow);
+  transform: translateY(-1px);
+}
+
+.no_requests {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-top: 40px;
+  font-size: 14px;
 }

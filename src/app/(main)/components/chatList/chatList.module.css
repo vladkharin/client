@@ -1,28 +1,70 @@
-.titles {
-  display: flex;
-  justify-content: space-between;
-}
-
+/* Контейнер всего бокового меню */
 .chats_wrapper {
-  height: calc(100vh - 60px);
-  width: 200px;
+  height: calc(100vh - 64px); /* Подгоняем под высоту хедера */
+  width: 260px; /* Чуть расширим для длинных имен */
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  background-color: var(--bg-main);
+  border-right: 1px solid var(--border-color);
+  padding: 10px;
+  box-sizing: border-box;
+  overflow-y: auto; /* Чтобы список скроллился */
 }
 
+.titles {
+  padding: 10px 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+/* Элемент списка чатов */
 .chat_item {
-  background: white;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-
-  max-width: 200px;
+  padding: 12px 15px;
+  border-radius: var(--radius);
   cursor: pointer;
+  transition: all var(--transition);
+  background: transparent;
+  border: 1px solid transparent;
+  margin-bottom: 2px;
 }
 
-.chat_item > div {
-  color: black;
+.chat_item:hover {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+/* Стиль для активного (выбранного) чата */
+.chat_item_active {
+  background-color: var(--bg-element) !important;
+  border-color: var(--primary-glow);
+}
+
+.chat_item_active .name {
+  color: var(--primary); /* Оранжевое имя при активации */
+}
+
+/* Имя и Фамилия */
+.name {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Если имя слишком длинное */
+}
+
+/* Юзернейм (@username) */
+.username {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.chat_item:hover .username {
+  color: var(--primary);
+  opacity: 0.8;
 }

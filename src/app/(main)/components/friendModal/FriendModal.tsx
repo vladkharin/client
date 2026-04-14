@@ -9,16 +9,10 @@ export default function FriendModal() {
   const { findOrCreateDirectChat, setActiveChat } = useChatStore();
 
   const handleWriteToFriend = (userId: number, username: string) => {
-    // 1. Находим или создаём чат
     const chat = findOrCreateDirectChat(userId, username);
-
-    // 2. Устанавливаем как активный
     setActiveChat(chat);
-
-    // 4. Закрываем модалку
     setFriendListState(false);
 
-    // 5. Если чат временный — запускаем таймер удаления (5 минут)
     if (chat.isTemporary) {
       startTemporaryChatCleanup(chat.id);
     }
@@ -31,16 +25,27 @@ export default function FriendModal() {
   return (
     <div className={styles.background}>
       <div className={styles.wrapper}>
-        <button onClick={closeModal}>Закрыть</button>
+        <div className={styles.header}>
+          <h2>Ваши друзья</h2>
+          <button className={styles.close_btn} onClick={closeModal}>
+            Закрыть
+          </button>
+        </div>
 
-        {friendList?.map((user) => (
-          <div key={user.id} className={styles.friendItem}>
-            <p>{user.username}</p>
-            <button onClick={() => handleWriteToFriend(user.id, user.username)} className={styles.writeButton}>
-              Написать
-            </button>
-          </div>
-        ))}
+        <div className={styles.friendList}>
+          {friendList?.length === 0 ? (
+            <p style={{ textAlign: "center", color: "var(--text-secondary)", marginTop: "20px" }}>Список друзей пуст</p>
+          ) : (
+            friendList?.map((user) => (
+              <div key={user.id} className={styles.friendItem}>
+                <p>@{user.username}</p>
+                <button onClick={() => handleWriteToFriend(user.id, user.username)} className={styles.writeButton}>
+                  Написать
+                </button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

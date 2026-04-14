@@ -1,30 +1,150 @@
+/* ФОН МОДАЛКИ (ЗАТЕМНЕНИЕ) */
 .background {
-  position: absolute;
+  position: fixed;
   width: 100vw;
   height: 100vh;
   top: 0;
   left: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px); /* Размытие заднего фона */
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 1000;
 }
 
+/* ОСНОВНОЕ ОКНО */
 .wrapper {
-  height: 600px;
-  width: 300px;
-  background: grey;
-  border: 2px solid black;
+  height: 500px;
+  width: 420px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  position: relative;
 }
 
+/* ХЕДЕР С КНОПКОЙ ЗАКРЫТЬ */
+.header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.close_btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: color var(--transition);
+}
+
+.close_btn:hover {
+  color: #ef4444;
+}
+
+/* ИНПУТ ПОИСКА */
 .input {
-  margin-top: 5px;
-  width: 80%;
-  height: 40px;
-  border-radius: 6px;
+  width: 100%;
+  height: 44px;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0 16px;
+  color: var(--text-primary);
+  font-size: 15px;
+  outline: none;
+  transition: all var(--transition);
+  box-sizing: border-box;
+  margin-bottom: 15px;
+}
+
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
+/* СПИСОК РЕЗУЛЬТАТОВ */
+.results_list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ЭЛЕМЕНТ ЮЗЕРА (ТУТ ВАЖЕН FLEX) */
+.user_item {
+  width: 100%; /* Чтобы растягивалось на всю ширину модалки */
+  display: flex;
+  justify-content: space-between; /* Имя слева, кнопка справа */
+  align-items: center;
+  padding: 10px 14px;
+  background-color: var(--bg-element);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.user_item:hover {
+  border-color: var(--border-color);
+  background-color: #1e222a;
+}
+
+.username {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* ТА САМАЯ ОРАНЖЕВАЯ КНОПКА */
+.add_btn {
+  background-color: var(--primary) !important;
+  color: #fff !important;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.add_btn:hover {
+  background-color: var(--primary-hover) !important;
+  transform: translateY(-1px);
+}
+
+/* ТЕКСТЫ ОШИБОК/ПУСТОТЫ */
+.no_results {
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 14px;
+  margin-top: 40px;
+}
+
+/* СКРОЛЛБАР */
+.results_list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.results_list::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 10px;
 }
