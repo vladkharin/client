@@ -10,7 +10,7 @@ import { REQUESTS } from "@/commands/commands";
 export default function WrapperzMessages() {
   const { activeChat, messages } = useChatStore();
   const { sendMessage } = useSocketStore();
-  const { removeProducer } = useCallStore();
+  const { removeProducer, setOutgoing, setConversationId } = useCallStore();
   const { user_id } = useUserStore();
 
   const inputRef = useRef<HTMLInputElement>(null); // Реф для инпута
@@ -18,6 +18,8 @@ export default function WrapperzMessages() {
 
   const clickToCall = () => {
     if (activeChat?.id) {
+      setOutgoing(true);
+      setConversationId(activeChat.id);
       sendMessage("call:request", { conversationId: activeChat.id });
     }
   };

@@ -6,17 +6,19 @@ export default function FinderModal() {
   const { sendMessage } = useSocketStore();
   const { usersList, setUsers, setState } = useFinderStore();
 
-  const findFriend = (e: FormEvent<HTMLInputElement>) => {
+  const findFriend = async (e: FormEvent<HTMLInputElement>) => {
     const target = e.target as HTMLInputElement;
     if (target.value) {
-      sendMessage("users:find", { name: target.value });
+      const response = await sendMessage("users:find", { name: target.value });
+      setUsers(response);
     } else {
       setUsers(null);
     }
   };
 
-  const sendFriendRequest = (targetId: number) => {
-    sendMessage("friend:request", { targetId });
+  const sendFriendRequest = async (targetId: number) => {
+    const response = await sendMessage("friend:request", { targetId });
+    console.log(response);
   };
 
   const closeModal = () => {

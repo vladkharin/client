@@ -8,13 +8,15 @@ import WrapperMessages from "../components/wrapperMessages/WrapperMessages";
 import { useChatStore } from "@/store/modules/chat";
 import CallModal from "../components/callModal/CallModal";
 import FinderModal from "../components/finderModal/FinderModal";
-import { useFinderStore, useUserStore } from "@/store";
+import { useCallStore, useFinderStore, useUserStore } from "@/store";
 import IncomingRequestsModal from "../components/friendRequests/IncomingRequests";
 import MainHeader from "../components/mainHeader/MainHeader";
 import FriendModal from "../components/friendModal/FriendModal";
+import OutgoingCallModal from "../components/outgoingCallModal/outgoingCallModal";
 
 export default function Page() {
   const { inComingCall } = useChatStore();
+  const { isOutgoing } = useCallStore();
   const { state } = useFinderStore();
   const { friendRequestsState, friendListState } = useUserStore();
 
@@ -28,6 +30,7 @@ export default function Page() {
         </div>
 
         {inComingCall && <CallModal />}
+        {isOutgoing && <OutgoingCallModal />}
         {state && <FinderModal />}
         {friendRequestsState && <IncomingRequestsModal />}
         {friendListState && <FriendModal />}

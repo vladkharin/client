@@ -18,12 +18,12 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     await device.load({ routerRtpCapabilities });
     console.log("✅ Device loaded");
 
-    const sendTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", { conversationId, direction: "send" });
+    const sendTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", { convId: conversationId, direction: "send" });
     sendTransport = device.createSendTransport(sendTransportInfo);
     setupSendTransport(sendTransport, conversationId);
     console.log("📤 Send transport создан");
 
-    const recvTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", { conversationId, direction: "recv" });
+    const recvTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", { convId: conversationId, direction: "recv" });
     recvTransport = device.createRecvTransport(recvTransportInfo);
     setupRecvTransport(recvTransport, conversationId);
     console.log("📥 Recv transport создан");
@@ -42,25 +42,35 @@ export const joinMediasoupRoom = async (conversationId: number) => {
 
 function setupSendTransport(transport: mediasoup.types.Transport, conversationId: number) {
   transport.on("connect", ({ dtlsParameters }, callback, errback) => {
-    console.log("📡 sendTransport.connect вызван");
+    console.log("📡 Попытка выполнить mediasoup:connectTransport...");
+
     useSocketStore
       .getState()
-      .sendMessage("mediasoup:connectTransport", { conversationId, transportId: transport.id, dtlsParameters })
-      .then(() => {
-        console.log("✅ sendTransport подключён");
-        callback();
+      .sendMessage("mediasoup:connectTransport", { convId: conversationId, transportId: transport.id, dtlsParameters })
+      .then((response) => {
+        // Если бэк вернул { success: true }, мы должны это увидеть здесь
+        console.log("✅ Ответ от сервера на connect:", response);
+        callback(); // <--- Только после этого mediasoup-client начнет вещать!
       })
-      .catch(errback);
+      .catch((err) => {
+        console.error("❌ Ошибка в connectTransport:", err);
+        errback(err);
+      });
   });
 
+  // Аналогично в produce
   transport.on("produce", ({ kind, rtpParameters }, callback, errback) => {
-    console.log("📤 sendTransport.produce вызван", { kind });
+    console.log("📤 Попытка выполнить mediasoup:produce...");
     useSocketStore
       .getState()
-      .sendMessage("mediasoup:produce", { conversationId, transportId: transport.id, kind, rtpParameters })
+      .sendMessage("mediasoup:produce", { convId: conversationId, transportId: transport.id, kind, rtpParameters })
       .then((data) => {
-        console.log("✅ Producer создан:", data.id);
-        callback({ id: data.id });
+        console.log("✅ Сервер подтвердил Produce:", data);
+        if (data && data.id) {
+          callback({ id: data.id });
+        } else {
+          errback(new Error("No producer ID returned from server"));
+        }
       })
       .catch(errback);
   });
@@ -79,7 +89,7 @@ function setupRecvTransport(transport: mediasoup.types.Transport, conversationId
 
     useSocketStore
       .getState()
-      .sendMessage("mediasoup:connectTransport", { conversationId, transportId: transport.id, dtlsParameters })
+      .sendMessage("mediasoup:connectTransport", { convId: conversationId, transportId: transport.id, dtlsParameters })
       .then(() => {
         console.log("✅ recvTransport подключён");
         callback();
@@ -131,39 +141,86 @@ async function produceAudio() {
 }
 
 export const consumeProducer = async (conversationId: number, producerId: string, peerId: string) => {
-  console.log("🎧 consumeProducer вызван", { producerId, peerId });
-  if (!device || !recvTransport) return;
+  console.log("🎧 [Consume] Начинаем процесс для:", { producerId, peerId, conversationId });
+
+  if (!device || !recvTransport) {
+    console.error("❌ [Consume] Ошибка: Device или recvTransport не инициализированы");
+    return;
+  }
 
   try {
     const { sendMessage } = useSocketStore.getState();
+
+    // 1. Запрос к серверу на создание консьюмера
+    console.log("📤 [Consume] Отправляем запрос mediasoup:consume...");
     const response = await sendMessage("mediasoup:consume", {
-      conversationId,
-      producerId,
+      convId: Number(conversationId),
+      producerId: producerId,
       rtpCapabilities: device.rtpCapabilities,
     });
 
+    console.log("📩 [Consume] Ответ от сервера получен:", response);
+
+    // 2. Создание локального объекта consumer в mediasoup-client
     const consumer = await recvTransport.consume({
-      id: producerId,
-      producerId,
+      id: response.id, // Используем ID из ответа сервера
+      producerId: response.producerId,
       kind: response.kind,
       rtpParameters: response.rtpParameters,
     });
-    console.log("✅ Consumer создан:", consumer.id);
 
-    const audio = new Audio();
-    audio.srcObject = new MediaStream([consumer.track]);
-    audio.volume = 1.0;
-    const playPromise = audio.play();
-    if (playPromise) {
-      playPromise.catch((err) => console.warn("🔇 Автовоспроизведение заблокировано:", err));
+    console.log("✅ [Consume] MediaSoup Consumer создан локально:", consumer.id);
+
+    // 3. Firefox/Chrome: Жизненно важно убедиться, что консьюмер не на паузе
+    if (consumer.paused) {
+      console.warn("⚠️ [Consume] Consumer на паузе, пробуем resume...");
+      // Если на бэке не прописано resume, можно попробовать пнуть здесь,
+      // но обычно это делается через сигнальный сервер.
     }
 
+    // 4. Работа с медиа-потоком
+    const { track } = consumer;
+    console.log("🎵 [Track State]:", {
+      id: track.id,
+      kind: track.kind,
+      readyState: track.readyState, // Должно быть 'live'
+      enabled: track.enabled, // Должно быть true
+    });
+
+    const stream = new MediaStream([track]);
+    const audio = new Audio();
+    audio.srcObject = stream;
+    audio.volume = 1.0;
+    audio.muted = false; // На всякий случай
+
+    // 5. Обработка воспроизведения с логированием успеха
+    audio.onloadedmetadata = () => {
+      console.log("📡 [Audio] Метаданные трека загружены");
+      audio
+        .play()
+        .then(() => {
+          console.log(`🔊 [Audio] Звук для пользователя ${peerId} успешно запущен!`);
+        })
+        .catch((err) => {
+          console.error("🔇 [Audio] Автоплей заблокирован браузером. Требуется клик пользователя.", err);
+          // Можно добавить визуальный индикатор "Включить звук" в UI
+        });
+    };
+
+    // Слушаем ошибки трека
+    track.onended = () => console.warn(`📢 [Track] Трек ${track.id} завершен (ended)`);
+    track.onmute = () => console.warn(`📢 [Track] Трек ${track.id} замучен (muted)`);
+    track.onunmute = () => console.log(`📢 [Track] Трек ${track.id} размучен (unmuted)`);
+
+    // 6. Сохраняем в стор
+    // ВАЖНО: убедись, что peerId здесь не undefined
     useCallStore.getState().addRemoteParticipant(peerId, producerId, audio);
+
+    console.log(`✨ [Consume] Процесс завершен для peerId: ${peerId}`);
   } catch (error) {
-    console.error("❌ Consume error:", error);
+    console.error("❌ [Consume] Критическая ошибка в consumeProducer:", error);
   }
 };
-
 export const leaveMediasoupRoom = () => {
   audioProduced = false;
   sendTransport?.close();
@@ -174,7 +231,7 @@ export const leaveMediasoupRoom = () => {
 
   const { conversationId } = useCallStore.getState();
   if (conversationId) {
-    useSocketStore.getState().sendMessage("mediasoup:leaveRoom", { conversationId });
+    useSocketStore.getState().sendMessage("mediasoup:leaveRoom", { convId: conversationId });
   }
   useCallStore.getState().reset();
   console.log("🧹 MediaSoup сессия завершена");

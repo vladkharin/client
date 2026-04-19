@@ -5,13 +5,15 @@ import { useSocketStore, useUserStore } from "@/store";
 import { REQUESTS } from "@/commands/commands";
 
 export default function ChatList() {
-  const { chats, setActiveChat, activeChat } = useChatStore(); // Достаем activeChat из стора
+  const { chats, setActiveChat, activeChat, setMessages } = useChatStore(); // Достаем activeChat из стора
   const { user_id } = useUserStore();
   const { sendMessage } = useSocketStore();
 
-  const chatClicked = (chat: CHAT) => {
+  const chatClicked = async (chat: CHAT) => {
     setActiveChat(chat);
-    sendMessage(REQUESTS.messageHistory, { conversationId: chat.id, userId: user_id });
+    const response = await sendMessage(REQUESTS.messageHistory, { conversationId: chat.id, userId: user_id });
+
+    setMessages(response.messages);
   };
 
   return (

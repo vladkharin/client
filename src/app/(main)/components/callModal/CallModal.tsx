@@ -1,25 +1,29 @@
 import styles from "./callModal.module.css";
-import { useSocketStore } from "@/store";
+import { useCallStore, useSocketStore } from "@/store";
 import { useChatStore } from "@/store/modules/chat";
 import { findUserusername } from "@/app/global.service";
 
 export default function CallModal() {
   const { sendMessage } = useSocketStore();
   const { inComingCall, setIncomingCall } = useChatStore(); // Добавим сеттер для закрытия
-
+  const { reset } = useCallStore();
   const chat_id = inComingCall?.conversationId;
   const callerData = chat_id ? findUserusername(chat_id) : null;
   const callerusername = callerData?.user.username || "Неизвестный";
 
-  const clickToCallAccept = () => {
-    sendMessage("call:accept", { conversationId: inComingCall?.conversationId });
+  const clickToCallAccept = async () => {
+    const response = await sendMessage("call:accept", { conversationId: inComingCall?.conversationId });
+
+    console.log(response);
     setIncomingCall(null); // Закрываем модалку после ответа
   };
 
-  const clickToDecline = () => {
+  const clickToDecline = async () => {
     // Если есть событие отклонения на бэкенде
-    sendMessage("call:decline", { conversationId: inComingCall?.conversationId });
+    const response = await sendMessage("mediasoup:leaveRoom", { conversationId: inComingCall?.conversationId });
+    console.log(response);
     setIncomingCall(null);
+    reset();
   };
 
   return (

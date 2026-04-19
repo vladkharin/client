@@ -1,4 +1,3 @@
-// store/useSocketStore.ts
 "use client";
 
 import { create } from "zustand";
@@ -12,27 +11,18 @@ import { SERVER_TYPE, useGlobalStore } from "./global";
 interface SocketState {
   socket: Socket | null;
   isConnected: boolean;
+  pendingRequests: Map<string, { resolve: (value: any) => void; reject: (err: Error) => void }>;
+
   connect: (token: string, onReady?: () => void) => void;
   disconnect: () => void;
   sendMessage: <T extends Record<string, unknown>>(event: string, payload: T) => Promise<any>;
-  flushMessageQueue: () => void;
-  pendingRequests: Map<string, { resolve: (value: any) => void; reject: (err: Error) => void }>;
-  messageQueue: Array<{
-    event: string;
-    payload: Record<string, unknown>;
-    resolve: (value: any) => void;
-    reject: (reason: any) => void;
-  }>;
 }
 
-// 👇 ИСПРАВЛЕННЫЕ URL (убраны пробелы)
 const PROD_SOCKET_URL = "https://app.domcraft.digital";
 const DEV_SOCKET_URL = "http://localhost:3001";
 
-// 👇 ГЛОБАЛЬНЫЙ СИНГЛТОН — переживает HMR!
-// Используем globalThis, а не модульную переменную
+// Синглтон для работы с Socket.io вне жизненного цикла React/Zustand (важно для HMR)
 const getGlobalSocket = (): Socket | null => (globalThis as any).__socketInstance ?? null;
-
 const setGlobalSocket = (socket: Socket | null) => {
   (globalThis as any).__socketInstance = socket;
 };
@@ -42,38 +32,21 @@ export const useSocketStore = create<SocketState>()(
     socket: null,
     isConnected: false,
     pendingRequests: new Map(),
-    messageQueue: [],
 
     connect: (token: string, onReady?: () => void) => {
-      console.log("🔌 connect() вызван", {
-        isConnected: get().isConnected,
-        hasSocket: !!get().socket,
-        globalSocketConnected: getGlobalSocket()?.connected,
-        timestamp: new Date().toISOString(),
-      });
+      const currentGlobal = getGlobalSocket();
 
-      // 👇 ПРОВЕРКА 1: Если уже подключены через стейт — выходим
-      if (get().isConnected) {
-        console.log("✅ Already connected (store state), skipping");
+      // Если сокет уже есть и подключен — просто обновляем стейт
+      if (currentGlobal?.connected) {
+        set({ socket: currentGlobal, isConnected: true });
         onReady?.();
         return;
       }
 
-      // 👇 ПРОВЕРКА 2: Если глобальный инстанс уже подключен — синхронизируем стейт
-      const globalSocket = getGlobalSocket();
-      if (globalSocket?.connected) {
-        console.log("✅ Global socket already connected, syncing state");
-        set({ socket: globalSocket, isConnected: true });
-        onReady?.();
-        return;
-      }
-
-      // 👇 ОЧИСТКА: Если есть старый глобальный инстанс — закрываем
-      if (globalSocket) {
-        console.log("🧹 Cleaning up old global socket");
-        globalSocket.removeAllListeners();
-        globalSocket.disconnect();
-        setGlobalSocket(null);
+      // Если сокет существует, но мертв — чистим его перед новым созданием
+      if (currentGlobal) {
+        currentGlobal.removeAllListeners();
+        currentGlobal.disconnect();
       }
 
       const { server } = useGlobalStore.getState();
@@ -82,122 +55,130 @@ export const useSocketStore = create<SocketState>()(
       const socket = io(SOCKET_URL, {
         query: { token },
         transports: ["websocket"],
-        autoConnect: false,
+        autoConnect: true, // Включаем авто-коннект
         reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
       });
 
       setGlobalSocket(socket);
 
-      const onResponse = (data: any) => {
-        if (data?.id && get().pendingRequests.has(data.id)) {
-          const { resolve, reject } = get().pendingRequests.get(data.id)!;
-          if (data.error) {
-            reject(new Error(data.error));
-          } else {
-            resolve(data.response);
-          }
-          get().pendingRequests.delete(data.id);
-        }
-      };
-
-      socket.onAny(onResponse);
+      // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
 
       socket.on("connect", () => {
-        console.log("🔗 Socket.IO connected:", socket.id);
-        set({ socket, isConnected: true });
-        get().flushMessageQueue();
+        console.log("🟢 Socket connected:", socket.id);
+        set({ isConnected: true, socket });
       });
 
       socket.on("auth:ready", () => {
-        console.log("✅ Auth ready on server");
+        console.log("🔐 Auth ready");
+        // Вызываем запросы после авторизации
         requestAfterAuthorization();
         registerSocketListeners(socket);
         onReady?.();
       });
 
       socket.on("disconnect", (reason) => {
-        console.log("❌ Socket.IO disconnected:", reason);
-        // Не сбрасываем глобальный инстанс — может переподключиться
+        console.warn("🟡 Socket disconnected:", reason);
         set({ isConnected: false });
       });
 
-      socket.on("connect_error", (error) => {
-        console.error("🔥 Socket.IO connection error:", error);
-        set({ isConnected: false });
-      });
+      // Универсальный слушатель ответов (если сервер шлет ответ не через callback)
+      socket.onAny((event, data) => {
+        if (data?.id && get().pendingRequests.has(data.id)) {
+          console.log(`📩 [onAny] Ответ для ${event}`);
+          const { resolve, reject } = get().pendingRequests.get(data.id)!;
+          get().pendingRequests.delete(data.id);
 
-      socket.on("new_message", (data) => {
-        console.log("📩 New message:", data);
-      });
-
-      // 👇 Обновляем стейт
-      set({ socket });
-
-      // 👇 Подключаемся
-      setTimeout(() => {
-        if (getGlobalSocket()?.connected !== true) {
-          socket.connect();
+          if (data.error) reject(new Error(data.error));
+          else resolve(data.response ?? data);
         }
-      }, 0);
+      });
+
+      set({ socket });
     },
 
     disconnect: () => {
-      console.log("🔌 Disconnecting socket...");
-
-      const globalSocket = getGlobalSocket();
-      if (globalSocket) {
-        globalSocket.removeAllListeners();
-        globalSocket.disconnect();
-        setGlobalSocket(null); // 👈 Сбрасываем глобальный инстанс
+      const { socket, pendingRequests } = get();
+      if (socket) {
+        socket.removeAllListeners();
+        socket.disconnect();
+        setGlobalSocket(null);
       }
-
-      // Очищаем ожидающие запросы
-      get().pendingRequests.forEach(({ reject }) => {
-        reject(new Error("Disconnected"));
-      });
-      get().pendingRequests.clear();
-
+      pendingRequests.forEach((req) => req.reject(new Error("Socket disconnected")));
+      pendingRequests.clear();
       set({ socket: null, isConnected: false });
-      console.log("✅ Socket disconnected");
     },
 
-    // ... остальные методы без изменений ...
-    sendMessage: <T extends Record<string, unknown>>(event: string, payload: T): Promise<any> => {
-      return new Promise((resolve, reject) => {
-        const id = generateId();
-        const state = get();
-        const socket = state.socket;
+    /**
+     * Самый надежный метод отправки:
+     * 1. Ждет соединения, если оно еще не установлено
+     * 2. Использует встроенные ACK (callbacks)
+     * 3. Имеет страховку через timeout
+     */
+    sendMessage: async (event, payload) => {
+      const id = generateId();
 
-        if (!socket?.connected) {
-          console.warn("⚠️ Socket not ready, queuing:", event);
-          set((state) => ({
-            messageQueue: [...state.messageQueue, { event, payload, resolve, reject }],
-          }));
-          return;
-        }
+      // Логика ожидания коннекта
+      const ensureConnected = (): Promise<Socket> => {
+        return new Promise((resolve, reject) => {
+          const s = get().socket || getGlobalSocket();
+          if (s?.connected) return resolve(s);
 
-        state.pendingRequests.set(id, { resolve, reject });
-        socket.emit(event, { ...payload, id });
-      });
-    },
+          const timeout = setTimeout(() => reject(new Error(`Connection timeout for ${event}`)), 5000);
 
-    flushMessageQueue: () => {
-      const state = get();
-      const socket = state.socket;
+          const checkInterval = setInterval(() => {
+            const currentSocket = get().socket || getGlobalSocket();
+            if (currentSocket?.connected) {
+              clearInterval(checkInterval);
+              clearTimeout(timeout);
+              resolve(currentSocket);
+            }
+          }, 100);
+        });
+      };
 
-      if (!socket?.connected || state.messageQueue.length === 0) return;
+      try {
+        const socket = await ensureConnected();
 
-      console.log(`🚀 Flushing ${state.messageQueue.length} queued messages`);
+        return new Promise((resolve, reject) => {
+          // Ставим тайм-аут на ответ от сервера
+          const responseTimeout = setTimeout(() => {
+            if (get().pendingRequests.has(id)) {
+              get().pendingRequests.delete(id);
+              reject(new Error(`Server response timeout: ${event}`));
+            }
+          }, 10000);
 
-      const queue = [...state.messageQueue];
-      set({ messageQueue: [] });
+          // Сохраняем запрос в Map (страховка для onAny)
+          get().pendingRequests.set(id, {
+            resolve: (val) => {
+              clearTimeout(responseTimeout);
+              resolve(val);
+            },
+            reject: (err) => {
+              clearTimeout(responseTimeout);
+              reject(err);
+            },
+          });
 
-      for (const { event, payload, resolve, reject } of queue) {
-        const id = generateId();
-        state.pendingRequests.set(id, { resolve, reject });
-        socket.emit(event, { ...payload, id });
+          console.log(`📤 [Emit] ${event}`, { ...payload, id });
+
+          // Отправляем с Callback (NestJS его подхватит)
+          socket.emit(event, { ...payload, id }, (response: any) => {
+            // Если мы уже обработали этот ID через onAny или таймаут — выходим
+            if (!get().pendingRequests.has(id)) return;
+
+            clearTimeout(responseTimeout);
+            get().pendingRequests.delete(id);
+
+            console.log(`📩 [Ack] ${event}`, response);
+
+            if (response?.error) reject(new Error(response.error));
+            else resolve(response?.response ?? response);
+          });
+        });
+      } catch (err) {
+        console.error(`❌ [Send Error] ${event}:`, err);
+        throw err;
       }
     },
   })),
