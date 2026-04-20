@@ -18,7 +18,7 @@ interface SocketState {
   sendMessage: <T extends Record<string, unknown>>(event: string, payload: T) => Promise<any>;
 }
 
-const PROD_SOCKET_URL = "https://app.domcraft.digital";
+const PROD_SOCKET_URL = "https://crafthive.ru";
 const DEV_SOCKET_URL = "http://localhost:3001";
 
 // Синглтон для работы с Socket.io вне жизненного цикла React/Zustand (важно для HMR)
