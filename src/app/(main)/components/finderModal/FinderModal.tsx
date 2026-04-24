@@ -1,10 +1,12 @@
 import { FormEvent } from "react";
 import styles from "./finderModal.module.css";
 import { useFinderStore, useSocketStore } from "@/store";
+import { REQUESTS } from "@/commands/commands";
+import { toast } from "react-toastify";
 
 export default function FinderModal() {
   const { sendMessage } = useSocketStore();
-  const { usersList, setUsers, setState } = useFinderStore();
+  const { usersList, setUsers, setState, setUser } = useFinderStore();
 
   const findFriend = async (e: FormEvent<HTMLInputElement>) => {
     const target = e.target as HTMLInputElement;
@@ -17,8 +19,20 @@ export default function FinderModal() {
   };
 
   const sendFriendRequest = async (targetId: number) => {
-    const response = await sendMessage("friend:request", { targetId });
-    console.log(response);
+    try {
+      const result = await sendMessage(REQUESTS.friendRequest, { targetId });
+
+      if (result.success) {
+        // Здесь обновляем список пользователей в сторе,
+        // чтобы у юзера проставился флаг hasPendingRequest
+        setUser(result.user);
+        toast.success("Запрос отправлен!");
+      } else if (result.exists) {
+        toast.info("Вы уже отправляли запрос этому пользователю");
+      }
+    } catch (error) {
+      toast.error("Не удалось отправить запрос");
+    }
   };
 
   const closeModal = () => {
@@ -38,14 +52,31 @@ export default function FinderModal() {
     // Нашли людей
     resultsContent = (
       <div className={styles.results_list}>
-        {usersList.map((user) => (
-          <div key={user.id} className={styles.user_item}>
-            <p className={styles.username}>@{user.username}</p>
-            <button className={styles.add_btn} onClick={() => sendFriendRequest(user.id)}>
-              Добавить
-            </button>
-          </div>
-        ))}
+        {usersList.map((user) => {
+          // Определяем состояние кнопки
+          const isFriend = user.isFriend;
+          const isPending = user.hasPendingRequest;
+          const isReceived = user.isRequestReceived;
+
+          const isDisabled = isFriend || isPending;
+
+          let buttonText = "Добавить";
+          if (isFriend) buttonText = "В друзьях";
+          else if (isPending) buttonText = "Запрос отправлен";
+
+          return (
+            <div key={user.id} className={styles.user_item}>
+              <p className={styles.username}>@{user.username}</p>
+              <button
+                className={`${styles.add_btn} ${isDisabled ? styles.disabled_btn : ""}`}
+                onClick={() => !isDisabled && sendFriendRequest(user.id)}
+                disabled={isDisabled}
+              >
+                {buttonText}
+              </button>
+            </div>
+          );
+        })}
       </div>
     );
   }

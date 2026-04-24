@@ -1,12 +1,17 @@
+import { REQUESTS } from "@/commands/commands";
 import styles from "./incomingRequests.module.css";
 import { useSocketStore, useUserStore } from "@/store";
 
 export default function IncomingRequestsModal() {
   const { sendMessage } = useSocketStore();
-  const { friendRequests, setFriendRequestState } = useUserStore();
+  const { friendRequests, setFriendRequestState, removeFriendRequest, addFriend } = useUserStore();
 
-  const acceptFriendRequest = (targetId: number) => {
-    sendMessage("friend:respond", { senderId: targetId, accept: true });
+  const acceptFriendRequest = async (targetId: number) => {
+    const result = await sendMessage(REQUESTS.friendRespond, { senderId: targetId, accept: true });
+
+    removeFriendRequest(result.friend.id, "incoming");
+
+    addFriend(result.friend);
   };
 
   const closeModal = () => {

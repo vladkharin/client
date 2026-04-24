@@ -13,7 +13,7 @@ export const REQUESTS = {
 } as const;
 
 export const NOTIFICATIONS = {
-  directChatNew: "notification.direct.message.new",
+  directChatNew: "notification.direct.chat.new",
 
   friendRequestReceived: "notification.friend.request.received",
   friendRequestResponded: "notification.friend.request.responded",

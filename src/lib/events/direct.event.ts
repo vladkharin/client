@@ -17,8 +17,8 @@ export const DirectEvents = (socket: Socket) => {
   });
 
   socket.on(NOTIFICATIONS.directChatNew, (data) => {
-    const { addChat } = useChatStore.getState();
+    const { onNewChat } = useChatStore.getState();
 
-    addChat(data.response);
+    onNewChat(data);
   });
 };

@@ -17,36 +17,24 @@ export type RESPONSE_AUTHORIZATION = {
   access_token: string;
 };
 
-export interface User {
+export interface Interlocutor {
   id: number;
-  name: string;
-  surname: string;
   username: string;
+  name: string | null;
+  surname: string | null;
 }
 
-export interface Member {
-  id: number;
-  userId: number;
-  conversationId: number;
-  joinedAt: string; // ISO 8601 строка, например "2026-01-20T18:03:32.058Z"
-  lastReadAt: string | null;
-  isOwner: boolean;
-  username: string | null;
-  user: User;
+export interface LastMessage {
+  text: string;
+  createdAt: Date | string; // Date для бэкенда, string для фронтенда после JSON.stringify
 }
 
 export interface CHAT {
   id: number;
-  type: "DIRECT"; // или enum, если будут другие типы
-  name: string | null;
-  avatar: string | null;
-  ownerId: number | null;
-  createdAt: string; // ISO 8601
-  updatedAt?: string; // ISO 8601
-  dmHash?: string;
-  members: Member[];
-  isTemporary?: boolean;
-  unreadCount: number;
+  updatedAt: Date | string;
+  lastMessage: LastMessage | null;
+  interlocutor: Interlocutor | null;
+  isTemporary?: boolean; // Добавь это поле сюда
 }
 
 export type FriendStatus = "PENDING" | "ACCEPTED" | "BLOCKED"; // 👈 Расширьте по необходимости

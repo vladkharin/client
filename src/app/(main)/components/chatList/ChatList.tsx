@@ -26,19 +26,17 @@ export default function ChatList() {
         <p style={{ color: "var(--text-secondary)", padding: "10px" }}>Нет чатов</p>
       ) : (
         chats?.map((chat) => {
-          const otherMember = chat.members.find((member) => member.userId !== user_id);
+          const otherMember = chat.interlocutor;
           const isActive = activeChat?.id === chat.id;
 
+          console.log(otherMember);
           return (
             <div
               key={chat?.id}
               className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
               onClick={() => chatClicked(chat)}
             >
-              <div className={styles.name}>
-                {otherMember?.user?.name} {otherMember?.user?.surname}
-              </div>
-              <div className={styles.username}>@{otherMember?.user.username}</div>
+              <div className={styles.username}>@{otherMember?.username}</div>
             </div>
           );
         })

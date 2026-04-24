@@ -39,7 +39,9 @@ interface CHAT_STATE {
 
   findOrCreateDirectChat: (userId: number, username: string) => CHAT;
   removeTemporaryChat: (chatId: number) => void;
+  replaceTemporaryChat: (tempId: number, realChat: CHAT) => void;
   updateChatLastMessage: (chatId: number, message: MessageChat) => void;
+  onNewChat: (newChat: CHAT) => void;
 }
 
 export const useChatStore = create<CHAT_STATE>()(
@@ -58,7 +60,7 @@ export const useChatStore = create<CHAT_STATE>()(
 
       addMessage: (message: MessageChat) =>
         set((state) => ({
-          messages: [...state.messages, message],
+          messages: [...(state?.messages ?? []), message],
         })),
 
       addChat: (chat: CHAT) =>
@@ -75,41 +77,33 @@ export const useChatStore = create<CHAT_STATE>()(
       findOrCreateDirectChat: (userId: number, username: string) => {
         const { chats } = get();
 
-        // 1. Ищем существующий DIRECT чат с этим пользователем
-        const existingChat = chats?.find((chat) => chat.type === "DIRECT" && chat.members?.some((m) => m.userId === userId));
+        // 1. Ищем существующий DIRECT чат с этим пользователем по interlocutor.id
+        const existingChat = chats?.find((chat) => chat.interlocutor?.id === userId);
 
         if (existingChat) {
           console.log("✅ Found existing chat:", existingChat.id);
           return existingChat;
         }
 
-        // 2. Создаём временный чат
-        const temporaryChat: CHAT = {
-          id: Date.now(), // Временный ID
-          type: "DIRECT",
-          name: username,
-          avatar: null,
-          ownerId: userId,
-          members: [
-            {
-              userId,
-              username,
-              id: Math.floor(Math.random() * 1000000), // или какой-то временный ID
-              conversationId: 0,
-              joinedAt: new Date().toISOString(),
-              lastReadAt: new Date().toISOString(),
-            } as CHAT["members"][number],
-          ],
-          isTemporary: true, // 👈 Помечаем как временный
-          createdAt: new Date().toISOString(),
-          unreadCount: 0,
+        // 2. Создаём временный чат в новом формате
+        const temporaryChat: CHAT & { isTemporary: boolean } = {
+          id: Date.now(), // Временный ID (TIMESTAMP)
+          updatedAt: new Date().toISOString(),
+          lastMessage: null,
+          isTemporary: true, // Флаг для логики удаления
+          interlocutor: {
+            id: userId,
+            username: username,
+            name: null, // Пока нет данных
+            surname: null, // Пока нет данных
+          },
         };
 
         console.log("🆕 Created temporary chat:", temporaryChat.id);
 
         // Добавляем в список чатов
         set((state) => ({
-          chats: state.chats ? [...state.chats, temporaryChat] : [temporaryChat],
+          chats: state.chats ? [temporaryChat, ...state.chats] : [temporaryChat],
         }));
 
         return temporaryChat;
@@ -123,15 +117,55 @@ export const useChatStore = create<CHAT_STATE>()(
           chats: state.chats?.filter((c) => c.id !== chatId) ?? null,
           activeChat: activeChat?.id === chatId ? null : activeChat,
         }));
-
         console.log("🗑️ Removed temporary chat:", chatId);
+      },
+
+      replaceTemporaryChat: (tempId: number, realChat: CHAT) => {
+        set((state) => {
+          const isUpdatingActive = state.activeChat?.id === tempId;
+
+          // Заменяем в списке чатов
+          const newChats = state.chats?.map((chat) => (chat.id === tempId ? { ...realChat, isTemporary: false } : chat)) ?? null;
+
+          return {
+            chats: newChats,
+            // Если этот чат сейчас открыт — обновляем и активный чат
+            activeChat: isUpdatingActive ? { ...realChat, isTemporary: false } : state.activeChat,
+          };
+        });
       },
 
       // 🔹 Обновить последнее сообщение в чате
       updateChatLastMessage: (chatId: number, message: MessageChat) => {
         set((state) => ({
-          chats: state.chats?.map((chat) => (chat.id === chatId ? { ...chat, lastMessage: message } : chat)) ?? null,
+          chats:
+            state.chats?.map((chat) => {
+              if (chat.id === chatId) {
+                return {
+                  ...chat,
+                  updatedAt: message.createdAt, // Обновляем дату чата на дату сообщения
+                  lastMessage: {
+                    text: message.content, // Конвертируем content в text
+                    createdAt: message.createdAt,
+                  },
+                };
+              }
+              return chat;
+            }) ?? null,
         }));
+      },
+
+      onNewChat: (newChat: CHAT) => {
+        set((state) => {
+          // Проверяем, нет ли уже такого чата (защита от дублей)
+          const exists = state.chats?.some((c) => c.id === newChat.id);
+          if (exists) return state;
+
+          return {
+            // Добавляем новый чат в начало списка
+            chats: state.chats ? [newChat, ...state.chats] : [newChat],
+          };
+        });
       },
     }),
     {

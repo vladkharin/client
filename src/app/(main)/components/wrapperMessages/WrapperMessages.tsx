@@ -32,7 +32,7 @@ export default function WrapperzMessages() {
         conversationId: activeChat.id,
         content: value,
         isTemporary: activeChat.isTemporary,
-        targetUserId: activeChat.isTemporary ? activeChat.ownerId : undefined,
+        targetUserId: activeChat.isTemporary ? activeChat.interlocutor?.id : undefined,
       });
       if (!inputRef.current) return;
       inputRef.current.value = ""; // Очищаем после отправки

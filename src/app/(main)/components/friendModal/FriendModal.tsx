@@ -1,18 +1,18 @@
 // components/friendModal/FriendModal.tsx
-import { useSocketStore, useChatStore, useUserStore } from "@/store";
-import { useRouter } from "next/navigation";
+import { useChatStore, useUserStore } from "@/store";
 import styles from "./friendModal.module.css";
 
 export default function FriendModal() {
-  const router = useRouter();
   const { setFriendListState, friendList } = useUserStore();
   const { findOrCreateDirectChat, setActiveChat } = useChatStore();
 
   const handleWriteToFriend = (userId: number, username: string) => {
+    // Теперь стор вернет объект с interlocutor
     const chat = findOrCreateDirectChat(userId, username);
     setActiveChat(chat);
     setFriendListState(false);
 
+    // Если чат новый (временный), запускаем таймер
     if (chat.isTemporary) {
       startTemporaryChatCleanup(chat.id);
     }

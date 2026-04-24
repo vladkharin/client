@@ -9,7 +9,7 @@ export default function CallModal() {
   const { reset } = useCallStore();
   const chat_id = inComingCall?.conversationId;
   const callerData = chat_id ? findUserusername(chat_id) : null;
-  const callerusername = callerData?.user.username || "Неизвестный";
+  const callerusername = callerData?.username || "Неизвестный";
 
   const clickToCallAccept = async () => {
     const response = await sendMessage("call:accept", { conversationId: inComingCall?.conversationId });

@@ -11,7 +11,7 @@ export default function OutgoingCallModal() {
   if (!isOutgoing) return null;
 
   const recipient = conversationId ? findUserusername(conversationId) : null;
-  const username = recipient?.user.username || "Пользователь";
+  const username = recipient?.username || "Пользователь";
 
   const handleCancel = () => {
     sendMessage("call:cancel", { conversationId: conversationId });
