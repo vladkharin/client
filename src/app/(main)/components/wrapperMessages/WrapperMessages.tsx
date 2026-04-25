@@ -58,7 +58,7 @@ export default function WrapperzMessages() {
           <div className={styles.upper_menu}>
             <div className={styles.left_side}>
               <div className={styles.avatar}></div>
-              <span style={{ fontWeight: 600 }}>{activeChat.name || "Чат"}</span>
+              <span style={{ fontWeight: 600 }}>{activeChat.interlocutor?.username || "Чат"}</span>
             </div>
             <button onClick={clickToCall}>Позвонить</button>
           </div>
