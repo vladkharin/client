@@ -151,7 +151,7 @@ export const consumeProducer = async (conversationId: number, producerId: string
   try {
     const { sendMessage } = useSocketStore.getState();
 
-    // 1. Запрос к серверу на создание консьюмера
+    // 1. Запрос к серверу на создание серверного Consumer
     console.log("📤 [Consume] Отправляем запрос mediasoup:consume...");
     const response = await sendMessage("mediasoup:consume", {
       convId: Number(conversationId),
@@ -159,11 +159,11 @@ export const consumeProducer = async (conversationId: number, producerId: string
       rtpCapabilities: device.rtpCapabilities,
     });
 
-    console.log("📩 [Consume] Ответ от сервера получен:", response);
+    console.log("📩 [Consume] Данные от сервера получены:", response);
 
     // 2. Создание локального объекта consumer в mediasoup-client
     const consumer = await recvTransport.consume({
-      id: response.id, // Используем ID из ответа сервера
+      id: response.id,
       producerId: response.producerId,
       kind: response.kind,
       rtpParameters: response.rtpParameters,
@@ -171,52 +171,75 @@ export const consumeProducer = async (conversationId: number, producerId: string
 
     console.log("✅ [Consume] MediaSoup Consumer создан локально:", consumer.id);
 
-    // 3. Firefox/Chrome: Жизненно важно убедиться, что консьюмер не на паузе
-    if (consumer.paused) {
-      console.warn("⚠️ [Consume] Consumer на паузе, пробуем resume...");
-      // Если на бэке не прописано resume, можно попробовать пнуть здесь,
-      // но обычно это делается через сигнальный сервер.
-    }
+    // 3. Активация потока (Resume)
+    // В MediaSoup consumer часто создается в состоянии 'paused' на сервере.
+    // Если звук не идет, обязательно нужно оповестить сервер, что мы готовы принимать данные.
+    await sendMessage("mediasoup:resumeConsumer", {
+      convId: Number(conversationId),
+      consumerId: consumer.id,
+    });
+    console.log("🔓 [Consume] Сигнал resume отправлен на сервер");
 
-    // 4. Работа с медиа-потоком
+    // 4. Подготовка медиа-потока
     const { track } = consumer;
+
+    // Проверка состояния трека перед воспроизведением
     console.log("🎵 [Track State]:", {
       id: track.id,
-      kind: track.kind,
       readyState: track.readyState, // Должно быть 'live'
-      enabled: track.enabled, // Должно быть true
+      enabled: track.enabled,
     });
 
     const stream = new MediaStream([track]);
-    const audio = new Audio();
-    audio.srcObject = stream;
-    audio.volume = 1.0;
-    audio.muted = false; // На всякий случай
 
-    // 5. Обработка воспроизведения с логированием успеха
+    // 5. Создание и настройка Audio элемента
+    // Используем document.createElement для более стабильной работы в браузерах
+    const audio = document.createElement("audio");
+    audio.id = `remote-audio-${peerId}`;
+    audio.srcObject = stream;
+    audio.autoplay = true;
+    audio.controls = false;
+    audio.style.display = "none"; // Прячем, так как нам нужен только звук
+
+    // Добавляем в DOM, чтобы браузер не считал поток "фоновым" и не обрезал его
+    document.body.appendChild(audio);
+
+    // 6. Запуск воспроизведения
     audio.onloadedmetadata = () => {
-      console.log("📡 [Audio] Метаданные трека загружены");
+      console.log(`📡 [Audio] Метаданные загружены для ${peerId}, запускаем...`);
       audio
         .play()
         .then(() => {
           console.log(`🔊 [Audio] Звук для пользователя ${peerId} успешно запущен!`);
         })
         .catch((err) => {
-          console.error("🔇 [Audio] Автоплей заблокирован браузером. Требуется клик пользователя.", err);
-          // Можно добавить визуальный индикатор "Включить звук" в UI
+          // Если вы видите эту ошибку, пользователю нужно кликнуть в любом месте страницы
+          console.error("🔇 [Audio] Ошибка автоплея. Требуется взаимодействие пользователя:", err);
+
+          // Хак для разблокировки звука при первом клике
+          const retryPlay = () => {
+            audio.play().then(() => {
+              console.log("🔊 [Audio] Звук успешно запущен после клика");
+              window.removeEventListener("click", retryPlay);
+            });
+          };
+          window.addEventListener("click", retryPlay);
         });
     };
 
-    // Слушаем ошибки трека
-    track.onended = () => console.warn(`📢 [Track] Трек ${track.id} завершен (ended)`);
-    track.onmute = () => console.warn(`📢 [Track] Трек ${track.id} замучен (muted)`);
-    track.onunmute = () => console.log(`📢 [Track] Трек ${track.id} размучен (unmuted)`);
+    // Слушатели событий трека для диагностики
+    track.onended = () => {
+      console.warn(`📢 [Track] Трек ${track.id} завершен`);
+      audio.remove();
+    };
 
-    // 6. Сохраняем в стор
-    // ВАЖНО: убедись, что peerId здесь не undefined
+    track.onmute = () => console.warn(`📢 [Track] Поток ${track.id} замолчал (mute)`);
+    track.onunmute = () => console.log(`📢 [Track] Поток ${track.id} снова активен (unmute)`);
+
+    // 7. Сохраняем в store для управления участниками и очистки
     useCallStore.getState().addRemoteParticipant(peerId, producerId, audio);
 
-    console.log(`✨ [Consume] Процесс завершен для peerId: ${peerId}`);
+    console.log(`✨ [Consume] Процесс полностью завершен для: ${peerId}`);
   } catch (error) {
     console.error("❌ [Consume] Критическая ошибка в consumeProducer:", error);
   }

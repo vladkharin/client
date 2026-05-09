@@ -8,7 +8,7 @@ import styles from "./wrapperMessages.module.css";
 import { REQUESTS } from "@/commands/commands";
 
 export default function WrapperzMessages() {
-  const { activeChat, messages } = useChatStore();
+  const { activeChat, messages, setMessages } = useChatStore();
   const { sendMessage } = useSocketStore();
   const { removeProducer, setOutgoing, setConversationId } = useCallStore();
   const { user_id } = useUserStore();
@@ -25,7 +25,7 @@ export default function WrapperzMessages() {
   };
 
   // Функция отправки
-  const handleSend = () => {
+  const handleSend = async () => {
     const value = inputRef.current?.value;
     if (value && activeChat?.id) {
       sendMessage(REQUESTS.messageSend, {
@@ -34,6 +34,12 @@ export default function WrapperzMessages() {
         isTemporary: activeChat.isTemporary,
         targetUserId: activeChat.isTemporary ? activeChat.interlocutor?.id : undefined,
       });
+
+      if (activeChat.isTemporary) {
+        const response = await sendMessage(REQUESTS.messageHistory, { conversationId: activeChat.id, userId: user_id });
+
+        setMessages(response.messages);
+      }
       if (!inputRef.current) return;
       inputRef.current.value = ""; // Очищаем после отправки
     }

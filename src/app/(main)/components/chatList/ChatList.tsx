@@ -10,7 +10,14 @@ export default function ChatList() {
   const { sendMessage } = useSocketStore();
 
   const chatClicked = async (chat: CHAT) => {
+    console.log(chat);
     setActiveChat(chat);
+
+    if (chat?.isTemporary) {
+      setMessages([]);
+
+      return;
+    }
     const response = await sendMessage(REQUESTS.messageHistory, { conversationId: chat.id, userId: user_id });
 
     setMessages(response.messages);
@@ -29,7 +36,6 @@ export default function ChatList() {
           const otherMember = chat.interlocutor;
           const isActive = activeChat?.id === chat.id;
 
-          console.log(otherMember);
           return (
             <div
               key={chat?.id}
