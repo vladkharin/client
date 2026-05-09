@@ -174,11 +174,11 @@ export const consumeProducer = async (conversationId: number, producerId: string
     // 3. Активация потока (Resume)
     // В MediaSoup consumer часто создается в состоянии 'paused' на сервере.
     // Если звук не идет, обязательно нужно оповестить сервер, что мы готовы принимать данные.
-    await sendMessage("mediasoup:resumeConsumer", {
-      convId: Number(conversationId),
-      consumerId: consumer.id,
-    });
-    console.log("🔓 [Consume] Сигнал resume отправлен на сервер");
+    // await sendMessage("mediasoup:resumeConsumer", {
+    //   convId: Number(conversationId),
+    //   consumerId: consumer.id,
+    // });
+    // console.log("🔓 [Consume] Сигнал resume отправлен на сервер");
 
     // 4. Подготовка медиа-потока
     const { track } = consumer;
