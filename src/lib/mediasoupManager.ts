@@ -141,27 +141,34 @@ async function produceAudio() {
 }
 
 export const consumeProducer = async (conversationId: number, producerId: string, peerId: string) => {
-  console.log("🎧 [Consume] Начинаем процесс для:", { producerId, peerId, conversationId });
+  console.log(`%c🎧 [Consume START] Producer: ${producerId} for Peer: ${peerId}`, "color: #00ff00; font-weight: bold");
 
   if (!device || !recvTransport) {
-    console.error("❌ [Consume] Ошибка: Device или recvTransport не инициализированы");
+    console.error("❌ [Consume] Device или recvTransport отсутствуют!", { device: !!device, recvTransport: !!recvTransport });
     return;
+  }
+
+  // Проверка состояния транспорта
+  console.log(`📡 [Consume] Состояние recvTransport: ${recvTransport.connectionState}`);
+  if (recvTransport.connectionState === "closed" || recvTransport.connectionState === "failed") {
+    console.error("❌ [Consume] Транспорт в нерабочем состоянии!");
   }
 
   try {
     const { sendMessage } = useSocketStore.getState();
 
-    // 1. Запрос к серверу на создание серверного Consumer
-    console.log("📤 [Consume] Отправляем запрос mediasoup:consume...");
+    // 1. Запрос к серверу. ПЕРЕДАЕМ transportId!
+    console.log("📤 [Consume] Запрос mediasoup:consume на сервер...");
     const response = await sendMessage("mediasoup:consume", {
-      convId: Number(conversationId),
+      conversationId: Number(conversationId),
       producerId: producerId,
       rtpCapabilities: device.rtpCapabilities,
+      transportId: recvTransport.id, // <--- КРИТИЧЕСКИ ВАЖНО
     });
 
-    console.log("📩 [Consume] Данные от сервера получены:", response);
+    console.log("📩 [Consume] Сервер одобрил Consume, ID:", response.id);
 
-    // 2. Создание локального объекта consumer в mediasoup-client
+    // 2. Локальный консьюм
     const consumer = await recvTransport.consume({
       id: response.id,
       producerId: response.producerId,
@@ -169,79 +176,45 @@ export const consumeProducer = async (conversationId: number, producerId: string
       rtpParameters: response.rtpParameters,
     });
 
-    console.log("✅ [Consume] MediaSoup Consumer создан локально:", consumer.id);
+    console.log(`✅ [Consume] MediaSoup Consumer создан. Kind: ${consumer.kind}`);
 
-    // 3. Активация потока (Resume)
-    // В MediaSoup consumer часто создается в состоянии 'paused' на сервере.
-    // Если звук не идет, обязательно нужно оповестить сервер, что мы готовы принимать данные.
-    // await sendMessage("mediasoup:resumeConsumer", {
-    //   convId: Number(conversationId),
-    //   consumerId: consumer.id,
-    // });
-    // console.log("🔓 [Consume] Сигнал resume отправлен на сервер");
-
-    // 4. Подготовка медиа-потока
     const { track } = consumer;
-
-    // Проверка состояния трека перед воспроизведением
-    console.log("🎵 [Track State]:", {
+    console.log("🎵 [Track Diagnostic]", {
       id: track.id,
-      readyState: track.readyState, // Должно быть 'live'
+      readyState: track.readyState,
       enabled: track.enabled,
+      muted: track.muted,
     });
 
     const stream = new MediaStream([track]);
 
-    // 5. Создание и настройка Audio элемента
-    // Используем document.createElement для более стабильной работы в браузерах
+    // 3. Создание аудио-элемента
     const audio = document.createElement("audio");
     audio.id = `remote-audio-${peerId}`;
     audio.srcObject = stream;
-    audio.autoplay = true;
-    audio.controls = false;
-    audio.style.display = "none"; // Прячем, так как нам нужен только звук
+    // ВАЖНО: для iOS/Safari иногда нужно явно выставить playsInline и muted, а потом unmute
+    audio.setAttribute("autoplay", "true");
+    audio.setAttribute("playsinline", "true");
 
-    // Добавляем в DOM, чтобы браузер не считал поток "фоновым" и не обрезал его
     document.body.appendChild(audio);
 
-    // 6. Запуск воспроизведения
-    audio.onloadedmetadata = () => {
-      console.log(`📡 [Audio] Метаданные загружены для ${peerId}, запускаем...`);
-      audio
-        .play()
-        .then(() => {
-          console.log(`🔊 [Audio] Звук для пользователя ${peerId} успешно запущен!`);
-        })
-        .catch((err) => {
-          // Если вы видите эту ошибку, пользователю нужно кликнуть в любом месте страницы
-          console.error("🔇 [Audio] Ошибка автоплея. Требуется взаимодействие пользователя:", err);
+    // Попытка воспроизведения с детальным логом
+    try {
+      await audio.play();
+      console.log(`%c🔊 [Audio SUCCESS] Звук для ${peerId} играет!`, "color: #00ff00");
+    } catch (err) {
+      console.warn("🔇 [Audio Play Blocked] Ждем клика пользователя...", err);
+      const unlock = async () => {
+        await audio.play();
+        console.log("🔊 [Audio UNLOCKED] Звук пошел после клика");
+        window.removeEventListener("click", unlock);
+      };
+      window.addEventListener("click", unlock);
+    }
 
-          // Хак для разблокировки звука при первом клике
-          const retryPlay = () => {
-            audio.play().then(() => {
-              console.log("🔊 [Audio] Звук успешно запущен после клика");
-              window.removeEventListener("click", retryPlay);
-            });
-          };
-          window.addEventListener("click", retryPlay);
-        });
-    };
-
-    // Слушатели событий трека для диагностики
-    track.onended = () => {
-      console.warn(`📢 [Track] Трек ${track.id} завершен`);
-      audio.remove();
-    };
-
-    track.onmute = () => console.warn(`📢 [Track] Поток ${track.id} замолчал (mute)`);
-    track.onunmute = () => console.log(`📢 [Track] Поток ${track.id} снова активен (unmute)`);
-
-    // 7. Сохраняем в store для управления участниками и очистки
     useCallStore.getState().addRemoteParticipant(peerId, producerId, audio);
-
-    console.log(`✨ [Consume] Процесс полностью завершен для: ${peerId}`);
   } catch (error) {
-    console.error("❌ [Consume] Критическая ошибка в consumeProducer:", error);
+    console.error("❌ [Consume FATAL]:", error);
   }
 };
 export const leaveMediasoupRoom = () => {
