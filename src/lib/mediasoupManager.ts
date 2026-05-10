@@ -18,12 +18,12 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     await device.load({ routerRtpCapabilities });
     console.log("✅ Device loaded");
 
-    const sendTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", { convId: conversationId, direction: "send" });
+    const sendTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", { conversationId: conversationId, direction: "send" });
     sendTransport = device.createSendTransport(sendTransportInfo);
     setupSendTransport(sendTransport, conversationId);
     console.log("📤 Send transport создан");
 
-    const recvTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", { convId: conversationId, direction: "recv" });
+    const recvTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", { conversationId: conversationId, direction: "recv" });
     recvTransport = device.createRecvTransport(recvTransportInfo);
     setupRecvTransport(recvTransport, conversationId);
     console.log("📥 Recv transport создан");
@@ -46,7 +46,7 @@ function setupSendTransport(transport: mediasoup.types.Transport, conversationId
 
     useSocketStore
       .getState()
-      .sendMessage("mediasoup:connectTransport", { convId: conversationId, transportId: transport.id, dtlsParameters })
+      .sendMessage("mediasoup:connectTransport", { conversationId: conversationId, transportId: transport.id, dtlsParameters })
       .then((response) => {
         // Если бэк вернул { success: true }, мы должны это увидеть здесь
         console.log("✅ Ответ от сервера на connect:", response);
@@ -63,7 +63,7 @@ function setupSendTransport(transport: mediasoup.types.Transport, conversationId
     console.log("📤 Попытка выполнить mediasoup:produce...");
     useSocketStore
       .getState()
-      .sendMessage("mediasoup:produce", { convId: conversationId, transportId: transport.id, kind, rtpParameters })
+      .sendMessage("mediasoup:produce", { conversationId: conversationId, transportId: transport.id, kind, rtpParameters })
       .then((data) => {
         console.log("✅ Сервер подтвердил Produce:", data);
         if (data && data.id) {
@@ -89,7 +89,7 @@ function setupRecvTransport(transport: mediasoup.types.Transport, conversationId
 
     useSocketStore
       .getState()
-      .sendMessage("mediasoup:connectTransport", { convId: conversationId, transportId: transport.id, dtlsParameters })
+      .sendMessage("mediasoup:connectTransport", { conversationId: conversationId, transportId: transport.id, dtlsParameters })
       .then(() => {
         console.log("✅ recvTransport подключён");
         callback();
@@ -227,7 +227,7 @@ export const leaveMediasoupRoom = () => {
 
   const { conversationId } = useCallStore.getState();
   if (conversationId) {
-    useSocketStore.getState().sendMessage("mediasoup:leaveRoom", { convId: conversationId });
+    useSocketStore.getState().sendMessage("mediasoup:leaveRoom", { conversationId: conversationId });
   }
   useCallStore.getState().reset();
   console.log("🧹 MediaSoup сессия завершена");
