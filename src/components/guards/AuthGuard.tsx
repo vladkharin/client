@@ -43,7 +43,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // 🔹 3. Защищённый маршрут без токена — редирект на вход
     if (!token) {
-      router.replace("/authorization");
+      router.replace("/");
       return;
     }
 

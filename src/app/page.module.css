@@ -75,3 +75,27 @@
   border-color: var(--text-secondary);
   transform: translateY(-2px);
 }
+
+.yandex_icon_only {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Размер XXL */
+  width: 60px;
+  height: 60px;
+
+  background: url("../assets/icons/yandex_logo.svg") center center/cover no-repeat;
+
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.yandex_icon_only:hover {
+  transform: scale(1.05);
+}
+
+.yandex_icon_only:active {
+  transform: scale(0.95);
+}

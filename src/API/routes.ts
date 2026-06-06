@@ -8,18 +8,28 @@ type OPTIONS = {
   method: string;
   headers: {
     "Content-Type": string;
+    Authorization?: string; // 👈 Добавляем опциональный заголовок
   };
   body?: string;
 };
 
-const f = async (method: string, data: string, url: string) => {
+const f = async (method: string, data: string | null, url: string) => {
   const { server } = useGlobalStore.getState();
+
+  // 1. Извлекаем токен из localStorage
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
   const options: OPTIONS = {
     method,
     headers: {
       "Content-Type": "application/json",
     },
   };
+
+  // 2. Если токен есть, добавляем его в заголовки
+  if (token) {
+    options.headers["Authorization"] = `Bearer ${token}`;
+  }
 
   if (data) {
     options.body = data;
@@ -29,12 +39,20 @@ const f = async (method: string, data: string, url: string) => {
 
   const response = await fetch(API_URL + url, options);
 
+  // 3. Обработка 401 (неавторизован) — если токен просрочен, можно разлогинить юзера
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    // Здесь можно вызвать метод из store для сброса состояния
+  }
+
   try {
-    return response.json();
+    return await response.json();
   } catch (error) {
-    console.log(error);
+    console.log("Fetch error:", error);
   }
 };
+
+// --- Обычная регистрация и логин ---
 
 export async function registration(data: string) {
   return await f("POST", data, "/user/registration");
@@ -42,4 +60,21 @@ export async function registration(data: string) {
 
 export async function authorization(data: string) {
   return await f("POST", data, "/auth/user");
+}
+
+// --- Новое: Авторизация через Яндекс ---
+
+export function loginWithYandex() {
+  const { server } = useGlobalStore.getState();
+  const API_URL = server == SERVER_TYPE.PROD ? PROD_API_URL : DEV_API_URL;
+
+  // Здесь мы не делаем fetch, а просто перенаправляем браузер
+  window.location.href = API_URL + "/auth/yandex";
+}
+
+// --- Новое: Получение профиля (себя) ---
+
+export async function getMe() {
+  // Передаем null в data, так как это GET запрос
+  return await f("GET", null, "/auth/profile");
 }

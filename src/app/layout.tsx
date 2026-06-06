@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthGuard } from "@/components/guards/AuthGuard";
 import CallOverlay from "./(main)/components/callOverlay/callOverlay";
 import { ToastContainer } from "react-toastify";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
           />
           <CallOverlay />
           {children}
+          <Script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js" strategy="afterInteractive" />
         </AuthGuard>
       </body>
     </html>
