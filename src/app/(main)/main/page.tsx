@@ -2,7 +2,6 @@
 
 import { AuthGuard } from "@/components/guards/AuthGuard";
 import ChatList from "../components/chatList/ChatList";
-
 import styles from "./page.module.css";
 import WrapperMessages from "../components/wrapperMessages/WrapperMessages";
 import { useChatStore } from "@/store/modules/chat";
@@ -14,20 +13,25 @@ import MainHeader from "../components/mainHeader/MainHeader";
 import FriendModal from "../components/friendModal/FriendModal";
 import OutgoingCallModal from "../components/outgoingCallModal/outgoingCallModal";
 import CreateGroupModal from "../components/createGroupModal/CreateGroupModal";
+import ProfileModal from "../components/profileModal/ProfileModal";
 
 export default function Page() {
-  const { inComingCall, createGroupModalOpen } = useChatStore();
+  const { inComingCall, createGroupModalOpen, activeChat } = useChatStore();
   const { isOutgoing } = useCallStore();
   const { state } = useFinderStore();
-  const { friendRequestsState, friendListState } = useUserStore();
+  const { friendRequestsState, friendListState, profileModalOpen } = useUserStore();
 
   return (
     <AuthGuard>
       <div className={styles.wrapper}>
         <MainHeader />
-        <div className={styles.content}>
-          <ChatList />
-          <WrapperMessages />
+        <div className={`${styles.content} ${activeChat ? styles.hasActiveChat : styles.noActiveChat}`}>
+          <div className={styles.chatListContainer}>
+            <ChatList />
+          </div>
+          <div className={styles.messagesContainer}>
+            <WrapperMessages />
+          </div>
         </div>
 
         {inComingCall && <CallModal />}
@@ -36,6 +40,7 @@ export default function Page() {
         {friendRequestsState && <IncomingRequestsModal />}
         {friendListState && <FriendModal />}
         {createGroupModalOpen && <CreateGroupModal />}
+        {profileModalOpen && <ProfileModal />}
       </div>
     </AuthGuard>
   );

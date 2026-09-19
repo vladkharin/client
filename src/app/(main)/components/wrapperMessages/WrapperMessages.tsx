@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react"; // добавили useRef
+import { useEffect, useRef } from "react";
 import { useSocketStore, useUserStore } from "@/store";
 import { useChatStore } from "@/store/modules/chat";
 import { useCallStore } from "@/store";
@@ -8,12 +8,16 @@ import styles from "./wrapperMessages.module.css";
 import { REQUESTS } from "@/commands/commands";
 
 export default function WrapperMessages() {
-  const { activeChat, messages, setMessages } = useChatStore();
+  const { activeChat, setActiveChat, messages, setMessages } = useChatStore();
   const { sendMessage } = useSocketStore();
   const { setOutgoing, setConversationId } = useCallStore();
   const { user_id } = useUserStore();
 
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleBack = () => {
+    setActiveChat(null as any);
+  };
 
   const clickToCall = () => {
     if (activeChat?.id) {
@@ -61,6 +65,9 @@ export default function WrapperMessages() {
         <>
           <div className={styles.upper_menu}>
             <div className={styles.left_side}>
+              <button className={styles.backBtn} onClick={handleBack} title="Назад к списку чатов">
+                ←
+              </button>
               <div className={styles.avatar}>{isGroup ? "👥" : ""}</div>
               <div>
                 <span style={{ fontWeight: 600 }}>{chatTitle}</span>
@@ -71,7 +78,7 @@ export default function WrapperMessages() {
                 )}
               </div>
             </div>
-            <button onClick={clickToCall}>Позвонить</button>
+            <button className={styles.callBtn} onClick={clickToCall}>Позвонить</button>
           </div>
 
           <div className={styles.wrapper_messages}>

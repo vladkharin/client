@@ -2,15 +2,56 @@
   height: 100vh;
   width: 100vw;
   display: flex;
-  gap: 10px;
-
-  position: relative;
-
-  display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-main);
 }
 
 .content {
   display: flex;
-  gap: 10px;
+  flex: 1;
+  overflow: hidden;
+  width: 100%;
+}
+
+.chatListContainer {
+  width: 260px;
+  min-width: 260px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.messagesContainer {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .chatListContainer {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .content.hasActiveChat .chatListContainer {
+    display: none;
+  }
+
+  .content.hasActiveChat .messagesContainer {
+    display: flex;
+    width: 100%;
+  }
+
+  .content.noActiveChat .chatListContainer {
+    display: flex;
+    width: 100%;
+  }
+
+  .content.noActiveChat .messagesContainer {
+    display: none;
+  }
 }

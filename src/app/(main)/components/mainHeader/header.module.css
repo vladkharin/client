@@ -1,34 +1,31 @@
 .wrapper {
   width: 100%;
-  height: 64px; /* Чуть выше для солидности */
-
+  min-height: 56px;
   display: flex;
-  align-items: center; /* Центрируем кнопки по вертикали */
-  padding: 0 24px;
-  gap: 12px;
-
-  /* Темный фон из переменных + легкая прозрачность */
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
-
-  /* Фиксация сверху (опционально) */
   position: sticky;
   top: 0;
   z-index: 100;
   box-sizing: border-box;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
-/* Стили для кнопок навигации */
 .wrapper button {
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid transparent;
-  padding: 8px 16px;
+  padding: 8px 14px;
   border-radius: var(--radius);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   transition: all var(--transition);
+  flex-shrink: 0;
 }
 
 .wrapper button:hover {
@@ -36,7 +33,6 @@
   background-color: var(--bg-element);
 }
 
-/* Выделяем важные кнопки (например, Поиск или Заявки) */
 .wrapper button:first-child {
   color: var(--primary);
   border-color: var(--primary-glow);
@@ -47,21 +43,49 @@
   border-color: var(--primary);
 }
 
-/* Кнопка выхода (красная/тусклая для безопасности) */
-.wrapper button:last-child {
-  margin-left: auto; /* Уводит "Выход" в правую сторону */
-  color: #ef4444; /* Оставим красный только здесь */
-  opacity: 0.7;
-}
-
-.wrapper button:last-child:hover {
-  opacity: 1;
-  background-color: rgba(239, 68, 68, 0.1);
-}
-
-/* Индикатор заявок (пульсирующий оранжевый) */
 .badge_button {
   color: var(--primary) !important;
   font-weight: 600 !important;
-  position: relative;
+}
+
+.rightGroup {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.profileBtn {
+  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  font-weight: 600 !important;
+}
+
+.profileBtn:hover {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+.logoutBtn {
+  color: #ef4444 !important;
+  opacity: 0.8;
+}
+
+.logoutBtn:hover {
+  opacity: 1;
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+@media (max-width: 600px) {
+  .wrapper {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .wrapper button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
 }

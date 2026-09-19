@@ -1,13 +1,18 @@
 // store/useUserStore.ts
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
-import { useSocketStore } from "../index"; // 👈 Импортируем сокет-стор
+import { useSocketStore } from "../index";
 import { FriendListItem } from "@/types/types";
 
 interface USER_STATE {
   token: string | null;
   user_id: number | null;
+  username: string | null;
+  email: string | null;
+  name: string | null;
+  surname: string | null;
   isHydrated: boolean;
+  profileModalOpen: boolean;
   friendList: FriendListItem[] | null;
   friendListState: boolean;
   friendRequests: {
@@ -23,10 +28,18 @@ export interface REQUEST {
 }
 
 interface USER_ACTIONS {
-  login: (token: string, id: number) => void;
+  login: (token: string, id: number, username?: string) => void;
   setToken: (token: string) => void;
   hydrate: () => void;
-  logout: () => void; // 👈 Новый метод
+  logout: () => void;
+  setProfileModalOpen: (open: boolean) => void;
+  setUserProfile: (profile: {
+    id: number;
+    username: string;
+    email?: string | null;
+    name?: string | null;
+    surname?: string | null;
+  }) => void;
   setFriendList: (list: FriendListItem[]) => void;
   addFriend: (friend: FriendListItem) => void;
   setFriendRequest: (request: REQUEST[] | REQUEST, type: "outgoing" | "incoming") => void;
@@ -42,7 +55,12 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
       (set) => ({
         token: null,
         user_id: null,
+        username: null,
+        email: null,
+        name: null,
+        surname: null,
         isHydrated: false,
+        profileModalOpen: false,
         friendList: null,
         friendRequestsState: false,
         friendRequests: {
@@ -50,24 +68,45 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
           incoming: [],
         },
 
-        login: (token, id) => set({ token, user_id: id }),
+        login: (token, id, username) =>
+          set({
+            token,
+            user_id: id,
+            ...(username && { username }),
+          }),
 
         setToken: (token) => set({ token }),
 
         hydrate: () => set({ isHydrated: true }),
 
+        setProfileModalOpen: (open) => set({ profileModalOpen: open }),
+
+        setUserProfile: (profile) =>
+          set({
+            user_id: profile.id,
+            username: profile.username,
+            email: profile.email || null,
+            name: profile.name || null,
+            surname: profile.surname || null,
+          }),
+
         logout: () => {
-          // 1. Отключаем сокет (если подключен)
           const socketState = useSocketStore.getState();
           socketState.disconnect();
 
-          // 2. Очищаем состояние (но НЕ сбрасываем isHydrated!)
-          set({ token: null, user_id: null });
+          set({
+            token: null,
+            user_id: null,
+            username: null,
+            email: null,
+            name: null,
+            surname: null,
+          });
 
-          // 3. Удаляем данные из localStorage
-          // persist использует ключ "user-storage" по умолчанию
           if (typeof window !== "undefined") {
             localStorage.removeItem("user-storage");
+            localStorage.removeItem("token");
+            localStorage.removeItem("auth_token");
           }
 
           console.log("👋 User logged out");
@@ -88,6 +127,7 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
               [type]: [request, ...(state.friendRequests[type] || [])],
             },
           })),
+
         removeFriendRequest: (id: number, type: "outgoing" | "incoming") =>
           set((state) => ({
             friendRequests: {
@@ -95,6 +135,7 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
               [type]: state.friendRequests[type].filter((req) => req.id !== id),
             },
           })),
+
         setFriendRequestState: (state: boolean) => set({ friendRequestsState: state }),
         setFriendListState: (state: boolean) => set({ friendListState: state }),
 
@@ -108,7 +149,14 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
     ),
     {
       name: "user-storage",
-      partialize: (state) => ({ token: state.token, user_id: state.user_id }),
+      partialize: (state) => ({
+        token: state.token,
+        user_id: state.user_id,
+        username: state.username,
+        email: state.email,
+        name: state.name,
+        surname: state.surname,
+      }),
       onRehydrateStorage: () => (state) => {
         state?.hydrate();
       },
