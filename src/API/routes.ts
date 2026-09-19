@@ -80,3 +80,14 @@ export async function getMe() {
 export async function updateProfile(data: { username?: string; email?: string; name?: string; surname?: string }) {
   return await f("PATCH", JSON.stringify(data), "/user/profile");
 }
+
+// --- Push-уведомления ---
+
+export async function registerPushToken(token: string, platform: string = "web") {
+  return await f("POST", JSON.stringify({ token, platform }), "/push/register");
+}
+
+export async function unregisterPushToken(token: string) {
+  return await f("DELETE", JSON.stringify({ token }), "/push/unregister");
+}
+

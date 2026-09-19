@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import { useChatStore, useFinderStore, useUserStore } from "@/store";
+import { requestNotificationPermission } from "@/lib/firebase";
 import styles from "./header.module.css";
 
 export default function MainHeader() {
@@ -12,6 +14,20 @@ export default function MainHeader() {
   } = useUserStore();
   const { setCreateGroupModalOpen } = useChatStore();
   const { setState } = useFinderStore();
+  const [notifGranted, setNotifGranted] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotifGranted(Notification.permission === "granted");
+    }
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    const token = await requestNotificationPermission();
+    if (token || (typeof window !== "undefined" && Notification.permission === "granted")) {
+      setNotifGranted(true);
+    }
+  };
 
   const openFinderModal = () => {
     setState(true);
@@ -51,6 +67,15 @@ export default function MainHeader() {
       <button onClick={openCreateGroupModal}>+ Группа</button>
 
       <div className={styles.rightGroup}>
+        {!notifGranted && (
+          <button
+            className={styles.profileBtn}
+            onClick={handleEnableNotifications}
+            title="Включить Push-уведомления"
+          >
+            🔔 Включить push
+          </button>
+        )}
         <button className={styles.profileBtn} onClick={openProfile}>
           👤 {username ? `@${username}` : "Профиль"}
         </button>
@@ -61,3 +86,4 @@ export default function MainHeader() {
     </div>
   );
 }
+
