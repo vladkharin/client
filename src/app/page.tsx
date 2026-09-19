@@ -39,15 +39,12 @@ export default function Home() {
         </h1>
 
         <div className={styles.buttons}>
-          {/* <Link href="/registration" className={`${styles.button} ${styles.button_primary}`}> */}
-          {/* Регистрация
+          <Link href="/registration" className={`${styles.button} ${styles.button_primary}`}>
+            Регистрация
           </Link>
           <Link href="/authorization" className={`${styles.button} ${styles.button_secondary}`}>
             Авторизация
-          </Link> */}
-
-          {/* --- НАША КНОПКА (КОПИЯ XXL ВЕРСИИ ЯНДЕКСА) --- */}
-          <button onClick={handleYandexLogin} className={styles.yandex_icon_only}></button>
+          </Link>
         </div>
       </div>
     </section>

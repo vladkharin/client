@@ -5,6 +5,7 @@ import { FriendsEvents } from "./events/friends.event";
 import { MessagesEvents } from "./events/messages.event";
 import { DirectEvents } from "./events/direct.event";
 import { UserEvents } from "./events/user.event";
+import { GroupEvents } from "./events/group.event";
 
 /**
  * Регистрирует все обработчики событий от сервера
@@ -15,4 +16,5 @@ export const registerSocketListeners = (socket: Socket) => {
   MessagesEvents(socket);
   DirectEvents(socket);
   UserEvents(socket);
+  GroupEvents(socket);
 };

@@ -13,9 +13,10 @@ import IncomingRequestsModal from "../components/friendRequests/IncomingRequests
 import MainHeader from "../components/mainHeader/MainHeader";
 import FriendModal from "../components/friendModal/FriendModal";
 import OutgoingCallModal from "../components/outgoingCallModal/outgoingCallModal";
+import CreateGroupModal from "../components/createGroupModal/CreateGroupModal";
 
 export default function Page() {
-  const { inComingCall } = useChatStore();
+  const { inComingCall, createGroupModalOpen } = useChatStore();
   const { isOutgoing } = useCallStore();
   const { state } = useFinderStore();
   const { friendRequestsState, friendListState } = useUserStore();
@@ -34,6 +35,7 @@ export default function Page() {
         {state && <FinderModal />}
         {friendRequestsState && <IncomingRequestsModal />}
         {friendListState && <FriendModal />}
+        {createGroupModalOpen && <CreateGroupModal />}
       </div>
     </AuthGuard>
   );

@@ -1,8 +1,9 @@
-import { useFinderStore, useUserStore } from "@/store";
+import { useChatStore, useFinderStore, useUserStore } from "@/store";
 import styles from "./header.module.css";
 
 export default function MainHeader() {
   const { logout, setFriendRequestState, friendRequests, setFriendListState } = useUserStore();
+  const { setCreateGroupModalOpen } = useChatStore();
   const { setState } = useFinderStore();
 
   const openFinderModal = () => {
@@ -20,6 +21,11 @@ export default function MainHeader() {
   const openFriendListModal = () => {
     setFriendListState(true);
   };
+
+  const openCreateGroupModal = () => {
+    setCreateGroupModalOpen(true);
+  };
+
   return (
     <div className={styles.wrapper}>
       {/* Логотип или название можно добавить сюда */}
@@ -32,6 +38,7 @@ export default function MainHeader() {
       )}
 
       <button onClick={openFriendListModal}>Друзья</button>
+      <button onClick={openCreateGroupModal}>+ Группа</button>
 
       <button onClick={logOutOfYourAccount}>Выход</button>
     </div>

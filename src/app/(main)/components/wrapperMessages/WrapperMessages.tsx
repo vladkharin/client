@@ -7,14 +7,13 @@ import { useCallStore } from "@/store";
 import styles from "./wrapperMessages.module.css";
 import { REQUESTS } from "@/commands/commands";
 
-export default function WrapperzMessages() {
+export default function WrapperMessages() {
   const { activeChat, messages, setMessages } = useChatStore();
   const { sendMessage } = useSocketStore();
-  const { removeProducer, setOutgoing, setConversationId } = useCallStore();
+  const { setOutgoing, setConversationId } = useCallStore();
   const { user_id } = useUserStore();
 
-  const inputRef = useRef<HTMLInputElement>(null); // Реф для инпута
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const clickToCall = () => {
     if (activeChat?.id) {
@@ -26,7 +25,7 @@ export default function WrapperzMessages() {
 
   // Функция отправки
   const handleSend = async () => {
-    const value = inputRef.current?.value;
+    const value = inputRef.current?.value?.trim();
     if (value && activeChat?.id) {
       sendMessage(REQUESTS.messageSend, {
         conversationId: activeChat.id,
@@ -38,22 +37,21 @@ export default function WrapperzMessages() {
       if (activeChat.isTemporary) {
         const response = await sendMessage(REQUESTS.messageHistory, { conversationId: activeChat.id, userId: user_id });
 
-        setMessages(response.messages);
+        if (response?.messages) {
+          setMessages(response.messages);
+        }
       }
       if (!inputRef.current) return;
-      inputRef.current.value = ""; // Очищаем после отправки
+      inputRef.current.value = "";
     }
   };
 
-  useEffect(() => {
-    if (Object.keys(removeProducer).length > 0 && audioRef.current) {
-      const firstAudio = Object.values(removeProducer)[0]?.audio;
-      if (firstAudio && firstAudio.srcObject) {
-        audioRef.current.srcObject = firstAudio.srcObject;
-        audioRef.current.play().catch((e) => console.warn("🔇 Play failed:", e));
-      }
-    }
-  }, [removeProducer]);
+  const isGroup = activeChat?.type === "GROUP";
+  const chatTitle = isGroup
+    ? activeChat.name || "Групповой чат"
+    : activeChat?.interlocutor?.username
+      ? `@${activeChat.interlocutor.username}`
+      : "Чат";
 
   return (
     <div className={styles.wrapper}>
@@ -63,8 +61,15 @@ export default function WrapperzMessages() {
         <>
           <div className={styles.upper_menu}>
             <div className={styles.left_side}>
-              <div className={styles.avatar}></div>
-              <span style={{ fontWeight: 600 }}>{activeChat.interlocutor?.username || "Чат"}</span>
+              <div className={styles.avatar}>{isGroup ? "👥" : ""}</div>
+              <div>
+                <span style={{ fontWeight: 600 }}>{chatTitle}</span>
+                {isGroup && activeChat.membersCount !== undefined && (
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)", marginLeft: "8px" }}>
+                    ({activeChat.membersCount} участников)
+                  </span>
+                )}
+              </div>
             </div>
             <button onClick={clickToCall}>Позвонить</button>
           </div>
@@ -78,10 +83,8 @@ export default function WrapperzMessages() {
                   return (
                     <div
                       key={message.id}
-                      // 2. Здесь должны быть ОБА класса: общий .message и специфичный (self или other)
                       className={`${styles.message} ${isSelf ? styles.message_self : styles.message_other}`}
                     >
-                      {/* 3. Добавь эти классы для текста и автора, чтобы работал цвет из CSS */}
                       <div className={styles.message_content}>{message.content}</div>
                       <div className={styles.message_author}>{isSelf ? "вы" : message.sender.username}</div>
                     </div>
@@ -95,14 +98,13 @@ export default function WrapperzMessages() {
                 ref={inputRef}
                 type="text"
                 placeholder="Напишите сообщение..."
-                onKeyDown={(e) => e.key === "Enter" && handleSend()} // Отправка по Enter
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
               />
               <button className={styles.send_button} onClick={handleSend}>
                 Отправить
               </button>
             </div>
           </div>
-          <audio ref={audioRef} autoPlay />
         </>
       )}
     </div>

@@ -58,13 +58,37 @@
   text-overflow: ellipsis; /* Если имя слишком длинное */
 }
 
-/* Юзернейм (@username) */
-.username {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
 .chat_item:hover .username {
   color: var(--primary);
   opacity: 0.8;
 }
+
+.group_header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group_icon {
+  font-size: 14px;
+}
+
+.group_name {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group_meta {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.chat_item:hover .group_name {
+  color: var(--primary);
+}
+

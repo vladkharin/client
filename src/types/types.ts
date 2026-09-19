@@ -31,10 +31,13 @@ export interface LastMessage {
 
 export interface CHAT {
   id: number;
+  type?: "DIRECT" | "GROUP" | "SERVER_CHANNEL";
+  name?: string | null;
   updatedAt: Date | string;
   lastMessage: LastMessage | null;
   interlocutor: Interlocutor | null;
-  isTemporary?: boolean; // Добавь это поле сюда
+  isTemporary?: boolean;
+  membersCount?: number;
 }
 
 export type FriendStatus = "PENDING" | "ACCEPTED" | "BLOCKED"; // 👈 Расширьте по необходимости

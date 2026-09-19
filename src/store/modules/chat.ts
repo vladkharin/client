@@ -27,6 +27,8 @@ interface CHAT_STATE {
   inComingCall: IncomingCall | null;
   acceptedCall: AcceptedCall | null;
   messages: MessageChat[];
+  createGroupModalOpen: boolean;
+  setCreateGroupModalOpen: (open: boolean) => void;
   setChats: (chats: CHAT[]) => void;
   addChat: (chat: CHAT) => void;
   setActiveChat: (chat: CHAT) => void;
@@ -51,6 +53,9 @@ export const useChatStore = create<CHAT_STATE>()(
       activeChat: null,
       inComingCall: null,
       acceptedCall: null,
+      messages: [],
+      createGroupModalOpen: false,
+      setCreateGroupModalOpen: (open: boolean) => set({ createGroupModalOpen: open }),
       setChats: (chats: CHAT[]) => set({ chats }),
       setActiveChat: (chat: CHAT) => set({ activeChat: chat }),
       setIncomingCall: (inComingCall: IncomingCall | null) => set({ inComingCall }),
@@ -59,15 +64,22 @@ export const useChatStore = create<CHAT_STATE>()(
       setMessages: (messages: MessageChat[]) => set({ messages }),
 
       addMessage: (message: MessageChat) =>
-        set((state) => ({
-          messages: [...(state?.messages ?? []), message],
-        })),
+        set((state) => {
+          if (state.messages?.some((m) => m.id === message.id)) {
+            return state;
+          }
+          return {
+            messages: [...(state?.messages ?? []), message],
+          };
+        }),
 
       addChat: (chat: CHAT) =>
-        set((state) => ({
-          // Если массив есть — добавляем в конец, иначе создаём новый с одним элементом
-          chats: state.chats ? [...state.chats, chat] : [chat],
-        })),
+        set((state) => {
+          if (state.chats?.some((c) => c.id === chat.id)) return state;
+          return {
+            chats: state.chats ? [chat, ...state.chats] : [chat],
+          };
+        }),
 
       prependMessages: (messages: MessageChat[]) =>
         set((state) => ({

@@ -77,7 +77,7 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
           set((state) => ({
             friendRequests: {
               ...state.friendRequests,
-              [type]: requests,
+              [type]: Array.isArray(requests) ? requests : requests ? [requests] : [],
             },
           })),
 
@@ -85,7 +85,7 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
           set((state) => ({
             friendRequests: {
               ...state.friendRequests,
-              [type]: [request, ...state.friendRequests[type]],
+              [type]: [request, ...(state.friendRequests[type] || [])],
             },
           })),
         removeFriendRequest: (id: number, type: "outgoing" | "incoming") =>

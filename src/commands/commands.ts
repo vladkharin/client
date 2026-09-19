@@ -5,6 +5,9 @@ export const REQUESTS = {
   friendIncoming: "friend:incoming",
   friendOutgoing: "friend:outgoing",
 
+  groupChatCreate: "group:create",
+  groupChatList: "group:get_all",
+
   messageSend: "message:send",
   messageHistory: "message:history",
   messageEdit: "message:edit",
@@ -14,6 +17,7 @@ export const REQUESTS = {
 
 export const NOTIFICATIONS = {
   directChatNew: "notification.direct.chat.new",
+  groupChatNew: "notification.group.chat.new",
 
   friendRequestReceived: "notification.friend.request.received",
   friendRequestResponded: "notification.friend.request.responded",

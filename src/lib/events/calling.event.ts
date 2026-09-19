@@ -20,15 +20,21 @@ export const CallingEvents = (socket: Socket) => {
     }
   };
   // Регистрируем обработчики
+  socket.off("mediasoup:getRouterRtpCapabilities");
   socket.on("mediasoup:getRouterRtpCapabilities", handleResponse("mediasoup:getRouterRtpCapabilities"));
+  socket.off("mediasoup:createWebRtcTransport");
   socket.on("mediasoup:createWebRtcTransport", handleResponse("mediasoup:createWebRtcTransport"));
+  socket.off("mediasoup:produce");
   socket.on("mediasoup:produce", handleResponse("mediasoup:produce"));
+  socket.off("mediasoup:consume");
   socket.on("mediasoup:consume", handleResponse("mediasoup:consume"));
+
+  socket.off("call:incoming");
   socket.on("call:incoming", (data) => {
-    console.log();
     useChatStore.getState().setIncomingCall({ callerId: data.from, conversationId: data.conversationId });
   });
 
+  socket.off("call:accepted");
   socket.on("call:accepted", (data) => {
     const { setOutgoing } = useCallStore.getState();
 
@@ -43,34 +49,26 @@ export const CallingEvents = (socket: Socket) => {
     joinMediasoupRoom(data.conversationId);
   });
 
-  // socket.on("call:started", (data) => {
-  //   setOutgoing(false);
-  //   console.log("✅ Звонок начался, подключаемся к MediaSoup");
-  //   joinMediasoupRoom(data.conversationId);
-  // });
-
+  socket.off("webrtc_signal");
   socket.on("webrtc_signal", (data) => {
     console.log("📡 WebRTC сигнал от", data.from, ":", data.data);
   });
 
+  socket.off("call:newProducer");
   socket.on("call:newProducer", (data: { producerId: string; userId: number; conversationId: number }) => {
     console.log("📥 Получен new-producer:", data);
     consumeProducer(data.conversationId, data.producerId, String(data.userId));
   });
 
+  socket.off("producer-closed");
   socket.on("producer-closed", (payload: { producerId: string }) => {
     console.log("📡 Собеседник закрыл поток:", payload.producerId);
 
     const { reset } = useCallStore.getState();
-
-    // 1. Удаляем конкретного участника из стора
-    // removeRemoteParticipant(payload.producerId);
-
-    // 2. Если это был единственный собеседник в комнате (для личек),
-    // или если логика бэкенда подразумевает полное закрытие звонка:
     reset();
   });
 
+  socket.off("call:cancelled");
   socket.on("call:cancelled", (payload: { producerId: string }) => {
     console.log("📡 Собеседник закрыл поток:", payload.producerId);
 
@@ -78,11 +76,6 @@ export const CallingEvents = (socket: Socket) => {
     const { setIncomingCall } = useChatStore.getState();
 
     setIncomingCall(null);
-    // 1. Удаляем конкретного участника из стора
-    // removeRemoteParticipant(payload.producerId);
-
-    // 2. Если это был единственный собеседник в комнате (для личек),
-    // или если логика бэкенда подразумевает полное закрытие звонка:
     reset();
   });
 };

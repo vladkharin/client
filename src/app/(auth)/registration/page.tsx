@@ -123,6 +123,13 @@ export default function Page() {
           <button className={styles.submit_btn} type="submit">
             Создать аккаунт
           </button>
+
+          <p style={{ marginTop: "16px", textAlign: "center", fontSize: "14px", color: "var(--text-secondary)" }}>
+            Уже есть аккаунт?{" "}
+            <Link href="/authorization" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 600 }}>
+              Войти
+            </Link>
+          </p>
         </form>
       </div>
     </section>

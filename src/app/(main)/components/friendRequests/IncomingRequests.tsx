@@ -32,14 +32,20 @@ export default function IncomingRequestsModal() {
           {!friendRequests?.incoming || friendRequests.incoming.length === 0 ? (
             <p className={styles.no_requests}>Новых заявок пока нет</p>
           ) : (
-            friendRequests.incoming.map((user) => (
-              <div key={user.id} className={styles.requestItem}>
-                <p>@{user.username}</p>
-                <button onClick={() => acceptFriendRequest(user.id)} className={styles.acceptButton}>
-                  Принять
-                </button>
-              </div>
-            ))
+            friendRequests.incoming.map((item: any, idx) => {
+              if (!item) return null;
+              const id = item.id ?? item.user?.id ?? item.from?.id;
+              const username = item.username ?? item.user?.username ?? item.from?.username ?? "пользователь";
+
+              return (
+                <div key={id || idx} className={styles.requestItem}>
+                  <p>@{username}</p>
+                  <button onClick={() => acceptFriendRequest(id)} className={styles.acceptButton}>
+                    Принять
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
       </div>

@@ -61,21 +61,25 @@ export const useSocketStore = create<SocketState>()(
 
       setGlobalSocket(socket);
 
+      registerSocketListeners(socket);
+
       // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
 
+      socket.off("connect");
       socket.on("connect", () => {
         console.log("🟢 Socket connected:", socket.id);
         set({ isConnected: true, socket });
       });
 
+      socket.off("auth:ready");
       socket.on("auth:ready", () => {
         console.log("🔐 Auth ready");
         // Вызываем запросы после авторизации
         requestAfterAuthorization();
-        registerSocketListeners(socket);
         onReady?.();
       });
 
+      socket.off("disconnect");
       socket.on("disconnect", (reason) => {
         console.warn("🟡 Socket disconnected:", reason);
         set({ isConnected: false });

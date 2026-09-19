@@ -71,6 +71,13 @@ export default function Page() {
         <button className={styles.submit_btn} type="submit">
           Войти в систему
         </button>
+
+        <p style={{ marginTop: "16px", textAlign: "center", fontSize: "14px", color: "var(--text-secondary)" }}>
+          Нет аккаунта?{" "}
+          <Link href="/registration" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 600 }}>
+            Зарегистрироваться
+          </Link>
+        </p>
       </form>
     </section>
   );
