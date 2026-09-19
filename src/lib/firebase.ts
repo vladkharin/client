@@ -42,7 +42,9 @@ export async function requestNotificationPermission(): Promise<string | null> {
     if (!app) return null;
 
     const messaging = getMessaging(app);
-    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+    const vapidKey =
+      process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ||
+      "BOcbg2mehL-mVWvtfDlst2TjmwVC0fj00ugwx9scxUrTL_Dd3lIm4qTbphb0RN9Qx1C1IAoKUQhCIFgqh17_mpM";
 
     const registration = await navigator.serviceWorker.register(
       "/firebase-messaging-sw.js"
