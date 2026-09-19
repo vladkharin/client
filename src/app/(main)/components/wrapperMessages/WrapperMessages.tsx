@@ -8,7 +8,7 @@ import styles from "./wrapperMessages.module.css";
 import { REQUESTS } from "@/commands/commands";
 
 export default function WrapperMessages() {
-  const { activeChat, setActiveChat, messages, setMessages } = useChatStore();
+  const { activeChat, setActiveChat, messages, setMessages, isMessagesLoading } = useChatStore();
   const { sendMessage } = useSocketStore();
   const { setOutgoing, setConversationId } = useCallStore();
   const { user_id } = useUserStore();
@@ -101,7 +101,12 @@ export default function WrapperMessages() {
 
           <div className={styles.wrapper_messages}>
             <div className={styles.scroller_messages}>
-              {messages &&
+              {isMessagesLoading ? (
+                <div className={styles.messages_loading}>
+                  <div className={styles.messages_spinner} />
+                  <span>Загрузка сообщений...</span>
+                </div>
+              ) : messages && messages.length > 0 ? (
                 messages.map((message) => {
                   const isSelf = message.sender.id === user_id;
 
@@ -114,7 +119,14 @@ export default function WrapperMessages() {
                       <div className={styles.message_author}>{isSelf ? "вы" : message.sender.username}</div>
                     </div>
                   );
-                })}
+                })
+              ) : (
+                <div className={styles.messages_empty}>
+                  <div className={styles.messages_empty_icon}>✨</div>
+                  <div className={styles.messages_empty_title}>Здесь пока пусто</div>
+                  <div className={styles.messages_empty_desc}>Напишите первое сообщение, чтобы начать диалог!</div>
+                </div>
+              )}
             </div>
 
             {/* Инпут вынесен из скроллера вниз */}

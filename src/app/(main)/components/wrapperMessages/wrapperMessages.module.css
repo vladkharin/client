@@ -101,6 +101,60 @@
   gap: 10px;
 }
 
+.messages_loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: auto;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.messages_spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.messages_empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  margin: auto;
+  color: var(--text-secondary);
+  padding: 20px;
+}
+
+.messages_empty_icon {
+  font-size: 36px;
+  margin-bottom: 4px;
+}
+
+.messages_empty_title {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.messages_empty_desc {
+  font-size: 13px;
+  max-width: 260px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* БАЗОВЫЙ СТИЛЬ СООБЩЕНИЯ */
 .message {
   max-width: 75%;

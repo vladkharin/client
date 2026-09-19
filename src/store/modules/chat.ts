@@ -27,7 +27,11 @@ interface CHAT_STATE {
   inComingCall: IncomingCall | null;
   acceptedCall: AcceptedCall | null;
   messages: MessageChat[];
+  isChatsLoading: boolean;
+  isMessagesLoading: boolean;
   createGroupModalOpen: boolean;
+  setIsChatsLoading: (loading: boolean) => void;
+  setIsMessagesLoading: (loading: boolean) => void;
   setCreateGroupModalOpen: (open: boolean) => void;
   setChats: (chats: CHAT[]) => void;
   addChat: (chat: CHAT) => void;
@@ -54,14 +58,18 @@ export const useChatStore = create<CHAT_STATE>()(
       inComingCall: null,
       acceptedCall: null,
       messages: [],
+      isChatsLoading: true,
+      isMessagesLoading: false,
       createGroupModalOpen: false,
+      setIsChatsLoading: (isChatsLoading: boolean) => set({ isChatsLoading }),
+      setIsMessagesLoading: (isMessagesLoading: boolean) => set({ isMessagesLoading }),
       setCreateGroupModalOpen: (open: boolean) => set({ createGroupModalOpen: open }),
-      setChats: (chats: CHAT[]) => set({ chats }),
+      setChats: (chats: CHAT[]) => set({ chats, isChatsLoading: false }),
       setActiveChat: (chat: CHAT) => set({ activeChat: chat }),
       setIncomingCall: (inComingCall: IncomingCall | null) => set({ inComingCall }),
       setAcceptedCall: (call) => set({ acceptedCall: call }),
       clearAcceptedCall: () => set({ acceptedCall: null }),
-      setMessages: (messages: MessageChat[]) => set({ messages }),
+      setMessages: (messages: MessageChat[]) => set({ messages, isMessagesLoading: false }),
 
       addMessage: (message: MessageChat) =>
         set((state) => {
