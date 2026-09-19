@@ -31,22 +31,40 @@ export default function WrapperMessages() {
   const handleSend = async () => {
     const value = inputRef.current?.value?.trim();
     if (value && activeChat?.id) {
-      sendMessage(REQUESTS.messageSend, {
-        conversationId: activeChat.id,
-        content: value,
-        isTemporary: activeChat.isTemporary,
-        targetUserId: activeChat.isTemporary ? activeChat.interlocutor?.id : undefined,
-      });
+      const isTemp = !!activeChat.isTemporary;
+      const targetUserId = isTemp ? activeChat.interlocutor?.id : undefined;
+      const currentChatId = activeChat.id;
 
-      if (activeChat.isTemporary) {
-        const response = await sendMessage(REQUESTS.messageHistory, { conversationId: activeChat.id, userId: user_id });
-
-        if (response?.messages) {
-          setMessages(response.messages);
-        }
+      if (inputRef.current) {
+        inputRef.current.value = "";
       }
-      if (!inputRef.current) return;
-      inputRef.current.value = "";
+
+      try {
+        const response = await sendMessage(REQUESTS.messageSend, {
+          conversationId: currentChatId,
+          content: value,
+          isTemporary: isTemp,
+          targetUserId,
+        });
+
+        if (response) {
+          if (isTemp && response.tempConversationId && response.fullChat) {
+            useChatStore.getState().replaceTemporaryChat(response.tempConversationId, response.fullChat);
+          }
+          if (response.id && response.conversationId) {
+            useChatStore.getState().addMessage({
+              id: response.id,
+              content: response.content,
+              conversationId: response.conversationId,
+              createdAt: response.createdAt || new Date().toISOString(),
+              senderId: user_id || response.senderId,
+              sender: response.sender || { id: user_id, username: "" },
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to send message:", err);
+      }
     }
   };
 
