@@ -1,0 +1,9 @@
+services:
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: messenger-client
+    restart: always
+    ports:
+      - "3002:3000"
