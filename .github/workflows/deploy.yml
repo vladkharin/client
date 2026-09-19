@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy-to-server:
-    name: 🚀 Deploy Frontend to VPS (Docker)
+    name: 🚀 Deploy Frontend to VPS (PM2)
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +27,7 @@ jobs:
             cd ~/projects/messenger-frontend || exit 1
             git fetch --all
             git reset --hard origin/main
-            echo "🐳 Building and starting Docker container..."
-            docker compose up -d --build
-            echo "🧹 Cleaning unused images..."
-            docker image prune -f
+            npm install
+            npm run build
+            pm2 restart messenger-client
             echo "✅ Messenger Frontend deployed successfully!"
