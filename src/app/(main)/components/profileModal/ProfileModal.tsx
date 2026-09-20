@@ -103,6 +103,7 @@ export default function ProfileModal() {
   }, [setUserProfile]);
 
   const handleSendVerificationCode = async () => {
+    setShowVerifyModal(true);
     try {
       setIsEmailActionLoading(true);
       try {
@@ -110,10 +111,9 @@ export default function ProfileModal() {
       } catch {
         await resendVerification(email);
       }
-      setShowVerifyModal(true);
       toast.info(`Код подтверждения отправлен на ${email}`);
     } catch (e: any) {
-      toast.error(e.message || "Ошибка отправки кода");
+      toast.error(e?.message || "Ошибка отправки кода");
     } finally {
       setIsEmailActionLoading(false);
     }
@@ -865,6 +865,23 @@ export default function ProfileModal() {
                   style={{ flex: 1 }}
                 >
                   {isEmailActionLoading ? "Проверка..." : "Подтвердить"}
+                </button>
+              </div>
+              <div style={{ marginTop: "12px", textAlign: "center" }}>
+                <button
+                  type="button"
+                  onClick={handleSendVerificationCode}
+                  disabled={isEmailActionLoading}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--primary)",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  {isEmailActionLoading ? "Отправка..." : "Отправить код повторно"}
                 </button>
               </div>
             </div>
