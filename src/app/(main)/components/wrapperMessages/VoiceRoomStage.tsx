@@ -48,7 +48,17 @@ function getInitials(name?: string) {
   return name.slice(0, 2).toUpperCase();
 }
 
-function VideoTile({ stream, username }: { stream: MediaStream; username: string }) {
+function VideoTile({
+  stream,
+  username,
+  isMe,
+  isMuted,
+}: {
+  stream: MediaStream;
+  username: string;
+  isMe: boolean;
+  isMuted: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -58,15 +68,22 @@ function VideoTile({ stream, username }: { stream: MediaStream; username: string
   }, [stream]);
 
   return (
-    <div className={styles.userCard} style={{ padding: 0 }}>
+    <div className={`${styles.userCard} ${!isMuted ? styles.speaking : ""}`} style={{ padding: 0, background: "#0b0e14" }}>
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted
+        muted={isMe}
         className={styles.videoElement}
       />
-      <div className={styles.videoOverlay}>{username}</div>
+      <div className={styles.videoOverlay}>
+        <span>{username}</span>
+        {isMuted ? (
+          <span style={{ color: "#ef4444", marginLeft: "6px" }}>🔇</span>
+        ) : (
+          <span style={{ color: "#10b981", marginLeft: "6px" }}>🎙️</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -99,38 +116,6 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
 
   return (
     <div className={styles.container}>
-      {/* Верхняя панель переключения режимов */}
-      <div className={styles.stageHeader}>
-        <div className={styles.channelInfo}>
-          <span className={styles.channelIcon}>🔊</span>
-          <div>
-            <div className={styles.channelTitle}>{channelName}</div>
-            <div className={styles.channelSubtitle}>
-              {allUsers.length > 0
-                ? `${allUsers.length} участников в голосовом канале`
-                : "Голосовой канал свободен"}
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.viewToggle}>
-          <button
-            type="button"
-            className={`${styles.toggleBtn} ${viewMode === "stage" ? styles.active : ""}`}
-            onClick={() => onToggleViewMode("stage")}
-          >
-            👥 Сцена ({allUsers.length})
-          </button>
-          <button
-            type="button"
-            className={`${styles.toggleBtn} ${viewMode === "chat" ? styles.active : ""}`}
-            onClick={() => onToggleViewMode("chat")}
-          >
-            💬 Текстовый чат
-          </button>
-        </div>
-      </div>
-
       {/* Сетка участников / Сцена */}
       <div className={styles.stageBody}>
         {allUsers.length === 0 ? (
@@ -166,6 +151,8 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                     key={user.id}
                     stream={localVideoStream}
                     username={`${user.username} (Вы)`}
+                    isMe={true}
+                    isMuted={isMicMuted}
                   />
                 );
               }
@@ -176,6 +163,8 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                     key={user.id}
                     stream={remoteStream}
                     username={user.username}
+                    isMe={false}
+                    isMuted={userMuted}
                   />
                 );
               }

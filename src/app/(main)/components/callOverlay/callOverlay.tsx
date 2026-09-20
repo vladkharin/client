@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import styles from "./callOverlay.module.css";
 import { useCallStore } from "@/store";
+import { useChatStore } from "@/store/modules/chat";
 import {
   leaveMediasoupRoom,
   toggleCamera,
@@ -60,6 +61,7 @@ function LocalVideo({ stream }: { stream: MediaStream }) {
 export default function CallOverlay() {
   const {
     inCall,
+    conversationId: callConvId,
     remoteParticipants,
     remoteVideoStreams,
     localVideoStream,
@@ -67,8 +69,11 @@ export default function CallOverlay() {
     isScreenActive,
     isMicMuted,
   } = useCallStore();
+  const { activeChat } = useChatStore();
 
-  if (!inCall) return null;
+  // Не показываем плавающий оверлей, если мы уже находимся внутри этого голосового канала
+  const isViewingThisVoiceChannel = activeChat?.id === callConvId && activeChat?.type === "SERVER_VOICE";
+  if (!inCall || isViewingThisVoiceChannel) return null;
 
   const totalCallMembers = new Set(remoteParticipants.map((p) => p.peerId)).size + 1;
   const remoteVideoEntries = Object.entries(remoteVideoStreams);

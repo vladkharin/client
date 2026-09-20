@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthGuard } from "@/components/guards/AuthGuard";
-import CallOverlay from "./(main)/components/callOverlay/callOverlay";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Script from "next/script";
@@ -109,7 +108,6 @@ export default function RootLayout({
             autoClose={3000} // Закроется через 3 сек
             theme="dark" // Тёмная тема (под твой интерфейс)
           />
-          <CallOverlay />
           {children}
           <Script
             src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"
