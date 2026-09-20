@@ -26,23 +26,26 @@ jobs:
         run: npm ci --legacy-peer-deps || npm install
 
       - name: 🏗️ Build Next.js (on GitHub Actions 16GB RAM)
-        run: npm run build
+        run: |
+          npm run build
+          rm -rf .next/cache
+          tar -czf frontend-build.tar.gz .next public package.json package-lock.json
         env:
           NEXT_TELEMETRY_DISABLED: 1
           NODE_ENV: production
 
-      - name: 🚚 Copy .next and assets to VPS via SCP
+      - name: 🚚 Transfer Archive to VPS via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: ".next,public,package.json,package-lock.json"
+          source: "frontend-build.tar.gz"
           target: "~/projects/messenger-frontend"
           overwrite: true
 
-      - name: 🔄 Restart PM2 on VPS
+      - name: 🔄 Extract & Restart PM2 on VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -50,7 +53,9 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            cd ~/projects/messenger-frontend
+            cd ~/projects/messenger-frontend || exit 1
+            tar -xzf frontend-build.tar.gz
+            rm -f frontend-build.tar.gz
             npm install --production --prefer-offline || true
             pm2 restart messenger-client || pm2 start npm --name "messenger-client" -- start
-            echo "✅ Messenger Frontend deployed with ZERO VPS build load!"
+            echo "✅ Messenger Frontend deployed successfully!"
