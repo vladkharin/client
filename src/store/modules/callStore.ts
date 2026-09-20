@@ -29,6 +29,7 @@ export interface ChannelUser {
 interface CallState {
   // Состояние комнаты
   inCall: boolean;
+  voiceConnectionState: "idle" | "connecting" | "connected" | "disconnected" | "error";
   isOutgoing: boolean;
   conversationId: number | null;
   error: string | null;
@@ -51,6 +52,7 @@ interface CallState {
   setOutgoing: (isOutgoing: boolean) => void;
   setConversationId: (id: number | null) => void;
   setInCall: (inCall: boolean) => void;
+  setVoiceConnectionState: (state: "idle" | "connecting" | "connected" | "disconnected" | "error") => void;
   setChannelParticipants: (conversationId: number, users: ChannelUser[]) => void;
 
   addRemoteParticipant: (peerId: string, producerId: string, audio: HTMLAudioElement) => void;
@@ -73,6 +75,7 @@ export const useCallStore = create<CallState>()(
   devtools(
     (set, get) => ({
       inCall: false,
+      voiceConnectionState: "idle",
       isOutgoing: false,
       conversationId: null,
       error: null,
@@ -98,13 +101,43 @@ export const useCallStore = create<CallState>()(
 
       setInCall: (inCall) => set({ inCall }),
 
-      setChannelParticipants: (conversationId, users) =>
+      setVoiceConnectionState: (voiceConnectionState) => set({ voiceConnectionState }),
+
+      setChannelParticipants: (conversationId, users) => {
+        const prevUsers = get().channelParticipants[conversationId] || [];
+        const inThisRoom = get().inCall && get().conversationId === conversationId;
+
+        // Если мы находимся в этой комнате, отслеживаем входы и выходы
+        if (inThisRoom && prevUsers.length > 0) {
+          const prevIds = new Set(prevUsers.map((u) => u.id));
+          const nextIds = new Set(users.map((u) => u.id));
+
+          users.forEach((u) => {
+            if (!prevIds.has(u.id)) {
+              import("@/lib/audioSounds").then((m) => m.playUserJoinedSound());
+              import("react-toastify").then(({ toast }) =>
+                toast.info(`🟢 @${u.username} подключился к голосовому`, { autoClose: 2500 })
+              );
+            }
+          });
+
+          prevUsers.forEach((u) => {
+            if (!nextIds.has(u.id)) {
+              import("@/lib/audioSounds").then((m) => m.playUserLeftSound());
+              import("react-toastify").then(({ toast }) =>
+                toast.info(`🔴 @${u.username} отключился от голосового`, { autoClose: 2500 })
+              );
+            }
+          });
+        }
+
         set((state) => ({
           channelParticipants: {
             ...state.channelParticipants,
             [conversationId]: users,
           },
-        })),
+        }));
+      },
 
       addRemoteParticipant: (peerId, producerId, audio) =>
         set((state) => {

@@ -1,6 +1,6 @@
-// src/lib/mediasoupManager.ts
 import * as mediasoup from "mediasoup-client";
 import { useSocketStore, useCallStore, useMediaSettingsStore } from "@/store";
+import { playJoinSound, playLeaveSound, playMuteSound } from "./audioSounds";
 
 let device: mediasoup.types.Device | null = null;
 let sendTransport: mediasoup.types.Transport | null = null;
@@ -19,6 +19,13 @@ export const joinMediasoupRoom = async (conversationId: number) => {
   videoProducer = null;
   consumedProducerIds.clear();
   pendingProducers.length = 0;
+
+  useCallStore.setState({
+    conversationId,
+    inCall: true,
+    voiceConnectionState: "connecting",
+    error: null,
+  });
 
   try {
     sendTransport?.close();
@@ -51,7 +58,13 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     recvTransport = device.createRecvTransport(recvTransportInfo);
     setupRecvTransport(recvTransport, conversationId);
 
-    useCallStore.setState({ conversationId, inCall: true, error: null });
+    useCallStore.setState({
+      conversationId,
+      inCall: true,
+      voiceConnectionState: "connected",
+      error: null,
+    });
+    playJoinSound();
 
     // 3. Запускаем микрофон
     produceAudio().catch(console.error);
@@ -198,9 +211,11 @@ export function toggleMuteMic(): boolean {
 
   const audioTrack = localStream.getAudioTracks()[0];
   if (audioTrack) {
+    const nextMuted = !isMicMuted;
     audioTrack.enabled = isMicMuted; // если был muted (true), включаем (enabled = true)
-    setIsMicMuted(!isMicMuted);
-    return !isMicMuted;
+    setIsMicMuted(nextMuted);
+    playMuteSound(nextMuted);
+    return nextMuted;
   }
   return isMicMuted;
 }
@@ -406,6 +421,7 @@ export const consumeProducer = async (conversationId: number, producerId: string
 };
 
 export const leaveMediasoupRoom = () => {
+  playLeaveSound();
   audioProduced = false;
   audioProducer = null;
   consumedProducerIds.clear();
@@ -428,4 +444,5 @@ export const leaveMediasoupRoom = () => {
     useSocketStore.getState().sendMessage("mediasoup:leaveRoom", { conversationId });
   }
   useCallStore.getState().reset();
+  useCallStore.setState({ voiceConnectionState: "disconnected" });
 };

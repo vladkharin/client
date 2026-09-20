@@ -76,6 +76,7 @@ export default function WrapperMessages() {
   const { sendMessage } = useSocketStore();
   const {
     inCall,
+    voiceConnectionState,
     conversationId: callConvId,
     isMicMuted,
     isCameraActive,
@@ -551,7 +552,19 @@ export default function WrapperMessages() {
                 <span className={styles.chatTitleText}>{chatTitle}</span>
                 {isServerChannel ? (
                   <span className={styles.chatSubtitle}>
-                    {activeChat.type === "SERVER_VOICE" ? "Голосовой канал" : "Текстовый канал"}
+                    {activeChat.type === "SERVER_VOICE" ? (
+                      isInThisVoiceChannel ? (
+                        voiceConnectionState === "connecting" ? (
+                          <span style={{ color: "#eab308", fontWeight: 600 }}>🟡 Подключение к голосовой связи...</span>
+                        ) : (
+                          <span style={{ color: "#10b981", fontWeight: 600 }}>🟢 Голосовая связь активна (RTC)</span>
+                        )
+                      ) : (
+                        `${(channelParticipants[activeChat.id] || []).length} участников в канале`
+                      )
+                    ) : (
+                      "Текстовый канал"
+                    )}
                   </span>
                 ) : isGroup ? (
                   <span className={styles.chatSubtitle}>

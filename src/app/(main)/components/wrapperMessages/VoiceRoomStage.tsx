@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from "react";
 import styles from "./voiceRoomStage.module.css";
 import { ChannelUser } from "@/store/modules/callStore";
-import { useUserStore } from "@/store";
+import { useUserStore, useCallStore } from "@/store";
 import {
   joinMediasoupRoom,
   leaveMediasoupRoom,
@@ -102,6 +102,7 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
   onToggleViewMode,
 }) => {
   const { user_id, username: myUsername, setProfileModalOpen } = useUserStore();
+  const { voiceConnectionState } = useCallStore();
 
   // Merge participants with local user if in room and not yet listed
   const allUsers = [...participants];
@@ -116,6 +117,32 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
 
   return (
     <div className={styles.container}>
+      {/* Плашка процесса подключения */}
+      {voiceConnectionState === "connecting" && (
+        <div
+          style={{
+            position: "absolute",
+            top: "14px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(234, 179, 8, 0.95)",
+            color: "#1e1e1e",
+            fontWeight: 700,
+            fontSize: "12px",
+            padding: "6px 16px",
+            borderRadius: "20px",
+            zIndex: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            boxShadow: "0 4px 16px rgba(234, 179, 8, 0.4)",
+          }}
+        >
+          <span>⏳</span>
+          <span>Установка голосового соединения...</span>
+        </div>
+      )}
+
       {/* Сетка участников / Сцена */}
       <div className={styles.stageBody}>
         {allUsers.length === 0 ? (
@@ -203,6 +230,31 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
       {/* Нижняя панель управления звонком */}
       {isInRoom ? (
         <div className={styles.controlBar}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "rgba(0, 0, 0, 0.4)",
+              padding: "7px 14px",
+              borderRadius: "10px",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: voiceConnectionState === "connected" ? "#10b981" : "#eab308",
+            }}
+          >
+            <span
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                background: voiceConnectionState === "connected" ? "#10b981" : "#eab308",
+                boxShadow: voiceConnectionState === "connected" ? "0 0 8px #10b981" : "none",
+              }}
+            />
+            <span>{voiceConnectionState === "connected" ? "RTC Подключено" : "Подключение..."}</span>
+          </div>
+
           <button
             type="button"
             className={`${styles.ctrlBtn} ${isMicMuted ? styles.muted : styles.active}`}
