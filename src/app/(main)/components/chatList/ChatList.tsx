@@ -155,29 +155,6 @@ export default function ChatList() {
         joinMediasoupRoom(chat.id).catch(console.error);
       }
     }
-
-    if (chat?.isTemporary) {
-      setMessages([]);
-      return;
-    }
-
-    setIsMessagesLoading(true);
-    try {
-      const response = await sendMessage(REQUESTS.messageHistory, {
-        conversationId: chat.id,
-        userId: user_id,
-      });
-      if (response?.messages) {
-        setMessages(response.messages);
-        useChatStore.getState().setFirstUnreadId(response.firstUnreadId || null);
-      } else {
-        setMessages([]);
-        useChatStore.getState().setFirstUnreadId(null);
-      }
-    } catch (err) {
-      console.error("Ошибка загрузки сообщений:", err);
-      setIsMessagesLoading(false);
-    }
   };
 
   const connectedChannelName =

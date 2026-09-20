@@ -38,7 +38,18 @@ function formatTime(dateString?: string) {
 }
 
 export default function WrapperMessages() {
-  const { activeChat, setActiveChat, messages, firstUnreadId, isMessagesLoading, typingUsers, deleteMessage } = useChatStore();
+  const {
+    activeChat,
+    setActiveChat,
+    messages,
+    setMessages,
+    firstUnreadId,
+    setFirstUnreadId,
+    isMessagesLoading,
+    setIsMessagesLoading,
+    typingUsers,
+    deleteMessage,
+  } = useChatStore();
   const { sendMessage } = useSocketStore();
   const {
     inCall,
@@ -129,6 +140,40 @@ export default function WrapperMessages() {
     removeSelectedFile();
     cancelRecording();
   }, [activeChat?.id]);
+
+  useEffect(() => {
+    if (!activeChat?.id || activeChat.isTemporary) {
+      return;
+    }
+
+    let isMounted = true;
+    setIsMessagesLoading(true);
+
+    sendMessage(REQUESTS.messageHistory, {
+      conversationId: activeChat.id,
+      userId: user_id,
+    })
+      .then((response: any) => {
+        if (!isMounted) return;
+        const msgList = response?.messages || (Array.isArray(response) ? response : []);
+        setMessages(msgList);
+        setFirstUnreadId(response?.firstUnreadId || null);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.error("Ошибка загрузки сообщений:", err);
+        setMessages([]);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsMessagesLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeChat?.id, user_id, sendMessage, setMessages, setIsMessagesLoading, setFirstUnreadId]);
 
   const handleBack = () => {
     setActiveChat(null);
@@ -424,12 +469,15 @@ export default function WrapperMessages() {
     }
   };
 
-  const isGroup = activeChat?.type === "GROUP" || activeChat?.type === "SERVER_CHANNEL";
-  const chatTitle = isGroup
-    ? activeChat.name || "Групповой чат"
+  const isServerChannel = activeChat?.type === "SERVER_CHANNEL" || activeChat?.type === "SERVER_VOICE";
+  const isGroup = activeChat?.type === "GROUP";
+  const chatTitle = isServerChannel
+    ? (activeChat.type === "SERVER_VOICE" ? `🔊 ${activeChat.name}` : `# ${activeChat.name}`)
+    : isGroup
+    ? (activeChat.name || "Групповой чат")
     : activeChat?.interlocutor?.username
-      ? `@${activeChat.interlocutor.username}`
-      : "Чат";
+    ? `@${activeChat.interlocutor.username}`
+    : "Чат";
 
   const currentTypingUsers = (activeChat?.id ? typingUsers[activeChat.id] : []) || [];
 
@@ -460,11 +508,21 @@ export default function WrapperMessages() {
                 ←
               </button>
               <div className={styles.avatar}>
-                {isGroup ? "👥" : (activeChat?.interlocutor?.username?.[0]?.toUpperCase() || "👤")}
+                {activeChat?.type === "SERVER_VOICE"
+                  ? "🔊"
+                  : activeChat?.type === "SERVER_CHANNEL"
+                  ? "#"
+                  : isGroup
+                  ? "👥"
+                  : (activeChat?.interlocutor?.username?.[0]?.toUpperCase() || "👤")}
               </div>
               <div className={styles.chatInfo}>
                 <span className={styles.chatTitleText}>{chatTitle}</span>
-                {isGroup ? (
+                {isServerChannel ? (
+                  <span className={styles.chatSubtitle}>
+                    {activeChat.type === "SERVER_VOICE" ? "Голосовой канал" : "Текстовый канал"}
+                  </span>
+                ) : isGroup ? (
                   <span className={styles.chatSubtitle}>
                     {activeChat.membersCount || 0} участников
                   </span>
@@ -507,7 +565,7 @@ export default function WrapperMessages() {
                     <span>Войти в голосовой</span>
                   </button>
                 )
-              ) : (
+              ) : activeChat?.type === "SERVER_CHANNEL" ? null : (
                 <button className={styles.callBtn} onClick={clickToCall} title="Начать звонок">
                   <span>📞</span>
                   <span>Позвонить</span>

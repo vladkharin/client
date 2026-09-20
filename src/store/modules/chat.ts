@@ -118,7 +118,12 @@ export const useChatStore = create<CHAT_STATE>()(
       setCreateGroupModalOpen: (open: boolean) => set({ createGroupModalOpen: open }),
       setCreateServerModalOpen: (open: boolean) => set({ createServerModalOpen: open }),
       setChats: (chats: CHAT[]) => set({ chats, isChatsLoading: false }),
-      setActiveChat: (chat: CHAT | null) => set({ activeChat: chat, firstUnreadId: null }),
+      setActiveChat: (chat: CHAT | null) =>
+        set((state) => ({
+          activeChat: chat,
+          firstUnreadId: null,
+          messages: state.activeChat?.id === chat?.id ? state.messages : [],
+        })),
       setServers: (servers: ServerItem[]) => set({ servers }),
       addServer: (server: ServerItem) => set((state) => ({ servers: [...state.servers, server] })),
       setActiveServer: (server: ServerItem | null) => set({ activeServer: server }),
