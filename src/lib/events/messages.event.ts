@@ -1,11 +1,14 @@
 import { NOTIFICATIONS, REQUESTS } from "@/commands/commands";
 import { MessageChat, useChatStore } from "@/store/modules/chat";
+import { useUserStore } from "@/store";
 import { Socket } from "socket.io-client";
+import { toast } from "react-toastify";
 
 export const MessagesEvents = (socket: Socket) => {
   socket.off(NOTIFICATIONS.messageNew);
   socket.on(NOTIFICATIONS.messageNew, (data: MessageChat) => {
     const { addMessage, activeChat, updateChatLastMessage } = useChatStore.getState();
+    const currentUserId = useUserStore.getState().user_id;
 
     if (data.conversationId) {
       updateChatLastMessage(data.conversationId, data);
@@ -13,6 +16,26 @@ export const MessagesEvents = (socket: Socket) => {
 
     if (activeChat && activeChat.id === data.conversationId) {
       addMessage(data);
+    }
+
+    const isFromOther = data.senderId && currentUserId && data.senderId !== currentUserId;
+    const isBackgroundOrOtherChat =
+      !activeChat || activeChat.id !== data.conversationId || (typeof document !== "undefined" && document.hidden);
+
+    if (isFromOther && isBackgroundOrOtherChat) {
+      const senderName = data.sender?.username || "Пользователь";
+      const preview = data.content || (data.fileUrl ? "Вложение" : "Новое сообщение");
+
+      toast.info(`💬 ${senderName}: ${preview.length > 60 ? preview.slice(0, 60) + "..." : preview}`);
+
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        try {
+          new Notification(senderName, {
+            body: preview,
+            icon: "/icon.png",
+          });
+        } catch {}
+      }
     }
   });
 

@@ -3,6 +3,8 @@ import { useChatStore, useFinderStore, useUserStore } from "@/store";
 import { requestNotificationPermission } from "@/lib/firebase";
 import styles from "./header.module.css";
 
+import { toast } from "react-toastify";
+
 export default function MainHeader() {
   const {
     logout,
@@ -26,6 +28,17 @@ export default function MainHeader() {
     const token = await requestNotificationPermission();
     if (token || (typeof window !== "undefined" && Notification.permission === "granted")) {
       setNotifGranted(true);
+      toast.success("Push-уведомления успешно включены!");
+      if (typeof window !== "undefined" && "Notification" in window) {
+        try {
+          new Notification("CraftHive", {
+            body: "Тестовое уведомление: всё работает отлично!",
+            icon: "/icon.png",
+          });
+        } catch {}
+      }
+    } else if (typeof window !== "undefined" && Notification.permission === "denied") {
+      toast.warn("Уведомления отключены в настройках браузера для этого сайта");
     }
   };
 

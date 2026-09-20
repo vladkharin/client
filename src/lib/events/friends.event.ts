@@ -3,6 +3,7 @@ import { useUserStore } from "@/store";
 import { REQUEST } from "@/store/modules/user";
 import { FriendListItem, RespondToRequestResult } from "@/types/types";
 import { Socket } from "socket.io-client";
+import { toast } from "react-toastify";
 
 export const FriendsEvents = (socket: Socket) => {
   socket.off(REQUESTS.friendIncoming);
@@ -19,6 +20,16 @@ export const FriendsEvents = (socket: Socket) => {
       const { addFriendRequest } = useUserStore.getState();
 
       addFriendRequest(data.from, "incoming");
+      toast.info(`📩 Новая заявка в друзья от @${data.from.username}`);
+
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        try {
+          new Notification("CraftHive", {
+            body: `Новая заявка в друзья от @${data.from.username}`,
+            icon: "/icon.png",
+          });
+        } catch {}
+      }
     },
   );
 
@@ -47,6 +58,7 @@ export const FriendsEvents = (socket: Socket) => {
     if (data.response.action == "accepted") {
       if (data.response.friend) {
         addFriend(data.response?.friend);
+        toast.success(`🎉 @${data.response.friend.username} принял вашу заявку в друзья!`);
       }
     }
 
