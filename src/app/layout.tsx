@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthGuard } from "@/components/guards/AuthGuard";
 import CallOverlay from "./(main)/components/callOverlay/callOverlay";
 import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Script from "next/script";
 
 const geistSans = Geist({

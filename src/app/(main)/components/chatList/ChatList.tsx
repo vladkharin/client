@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useChatStore } from "@/store/modules/chat";
 import styles from "./chatList.module.css";
 import { CHAT } from "@/types/types";
 import { useSocketStore, useUserStore, useCallStore } from "@/store";
 import { REQUESTS } from "@/commands/commands";
+import { toast } from "react-toastify";
+import CreateChannelModal from "../createChannelModal/CreateChannelModal";
+import ConfirmModal from "../confirmModal/ConfirmModal";
 import {
   joinMediasoupRoom,
   leaveMediasoupRoom,
@@ -62,6 +65,11 @@ export default function ChatList() {
     setChannelParticipants,
   } = useCallStore();
 
+  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+  const [createChannelType, setCreateChannelType] = useState<"SERVER_CHANNEL" | "SERVER_VOICE">("SERVER_CHANNEL");
+  const [isDeleteServerOpen, setIsDeleteServerOpen] = useState(false);
+  const [isLeaveServerOpen, setIsLeaveServerOpen] = useState(false);
+
   useEffect(() => {
     if (activeServer?.channels) {
       const voiceChs = activeServer.channels.filter((c) => c.type === "SERVER_VOICE");
@@ -78,46 +86,40 @@ export default function ChatList() {
     }
   }, [activeServer?.id, activeServer?.channels, sendMessage, setChannelParticipants]);
 
-
   const isOwner = activeServer?.ownerId === user_id || activeServer?.role === "OWNER";
 
   const handleDeleteServer = async () => {
     if (!activeServer) return;
-    if (!window.confirm(`Вы действительно хотите удалить сервер "${activeServer.name}"? Это действие необратимо.`)) {
-      return;
-    }
-
     try {
       await sendMessage(REQUESTS.serverDelete, { serverId: activeServer.id });
+      const serverName = activeServer.name;
       setServers(servers.filter((s) => s.id !== activeServer.id));
       setActiveServer(null);
       setActiveChat(null);
+      toast.info(`Сервер "${serverName}" удален`);
     } catch (err: any) {
-      alert(err?.message || "Ошибка удаления сервера");
+      toast.error(err?.message || "Ошибка удаления сервера");
+      throw err;
     }
   };
 
   const handleLeaveServer = async () => {
     if (!activeServer) return;
-    if (!window.confirm(`Вы уверены, что хотите покинуть сервер "${activeServer.name}"?`)) {
-      return;
-    }
-
     try {
       await sendMessage(REQUESTS.serverLeave, { serverId: activeServer.id });
+      const serverName = activeServer.name;
       setServers(servers.filter((s) => s.id !== activeServer.id));
       setActiveServer(null);
       setActiveChat(null);
+      toast.info(`Вы покинули сервер "${serverName}"`);
     } catch (err: any) {
-      alert(err?.message || "Ошибка выхода с сервера");
+      toast.error(err?.message || "Ошибка выхода с сервера");
+      throw err;
     }
   };
 
-  const handleCreateChannel = async (type: "SERVER_CHANNEL" | "SERVER_VOICE") => {
+  const handleCreateChannel = async (name: string, type: "SERVER_CHANNEL" | "SERVER_VOICE") => {
     if (!activeServer) return;
-    const name = window.prompt(type === "SERVER_CHANNEL" ? "Введите название текстового канала:" : "Введите название голосового канала:");
-    if (!name || !name.trim()) return;
-
     try {
       const res: any = await sendMessage(REQUESTS.channelCreate, {
         serverId: activeServer.id,
@@ -134,9 +136,11 @@ export default function ChatList() {
         setActiveServer(updatedServer);
         setServers(servers.map((s) => (s.id === updatedServer.id ? updatedServer : s)));
         setActiveChat(newChannel);
+        toast.success(`Канал "${newChannel.name}" успешно создан!`);
       }
     } catch (err: any) {
-      alert(err?.message || "Ошибка создания канала");
+      toast.error(err?.message || "Ошибка создания канала");
+      throw err;
     }
   };
 
@@ -257,7 +261,7 @@ export default function ChatList() {
               {isOwner ? (
                 <button
                   type="button"
-                  onClick={handleDeleteServer}
+                  onClick={() => setIsDeleteServerOpen(true)}
                   title="Удалить сервер"
                   style={{
                     background: "rgba(239, 68, 68, 0.15)",
@@ -274,7 +278,7 @@ export default function ChatList() {
               ) : (
                 <button
                   type="button"
-                  onClick={handleLeaveServer}
+                  onClick={() => setIsLeaveServerOpen(true)}
                   title="Покинуть сервер"
                   style={{
                     background: "rgba(239, 68, 68, 0.15)",
@@ -319,7 +323,7 @@ export default function ChatList() {
                 onClick={() => {
                   const url = `${window.location.origin}/invite/${activeServer.inviteCode}`;
                   navigator.clipboard?.writeText(url);
-                  alert("✅ Ссылка-приглашение скопирована в буфер обмена:\n" + url);
+                  toast.success("Ссылка-приглашение скопирована в буфер обмена!");
                 }}
                 style={{
                   flex: 1,
@@ -373,7 +377,10 @@ export default function ChatList() {
             {isOwner && (
               <button
                 type="button"
-                onClick={() => handleCreateChannel("SERVER_CHANNEL")}
+                onClick={() => {
+                  setCreateChannelType("SERVER_CHANNEL");
+                  setIsCreateChannelOpen(true);
+                }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -415,7 +422,10 @@ export default function ChatList() {
             {isOwner && (
               <button
                 type="button"
-                onClick={() => handleCreateChannel("SERVER_VOICE")}
+                onClick={() => {
+                  setCreateChannelType("SERVER_VOICE");
+                  setIsCreateChannelOpen(true);
+                }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -501,6 +511,36 @@ export default function ChatList() {
         </div>
 
         {voiceConnectedWidget}
+
+        {/* Модальное окно создания канала */}
+        <CreateChannelModal
+          isOpen={isCreateChannelOpen}
+          onClose={() => setIsCreateChannelOpen(false)}
+          initialType={createChannelType}
+          onCreate={(name, type) => handleCreateChannel(name, type)}
+        />
+
+        {/* Подтверждение удаления сервера */}
+        <ConfirmModal
+          isOpen={isDeleteServerOpen}
+          onClose={() => setIsDeleteServerOpen(false)}
+          onConfirm={handleDeleteServer}
+          title="Удалить сервер"
+          description={`Вы действительно хотите удалить сервер "${activeServer.name}"? Все каналы, история сообщений и настройки будут безвозвратно удалены.`}
+          confirmText="Удалить сервер"
+          variant="danger"
+        />
+
+        {/* Подтверждение выхода с сервера */}
+        <ConfirmModal
+          isOpen={isLeaveServerOpen}
+          onClose={() => setIsLeaveServerOpen(false)}
+          onConfirm={handleLeaveServer}
+          title="Покинуть сервер"
+          description={`Вы уверены, что хотите покинуть сервер "${activeServer.name}"? Вы потеряете доступ к его каналам, пока не получите новое приглашение.`}
+          confirmText="Покинуть сервер"
+          variant="warning"
+        />
       </aside>
     );
   }
