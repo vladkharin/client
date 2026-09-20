@@ -34,7 +34,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
           NODE_ENV: production
 
-      - name: 🚚 Transfer & Deploy via Native SSH
+      - name: 🚚 Stream & Deploy to VPS over SSH
         env:
           SSHPASS: ${{ secrets.SERVER_PASSWORD }}
           HOST: ${{ secrets.SERVER_HOST }}
@@ -43,17 +43,11 @@ jobs:
         run: |
           sudo apt-get update -y && sudo apt-get install -y sshpass
           
-          # 1. Создаем папку на сервере если нет
-          sshpass -e ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "mkdir -p ~/projects/messenger-frontend"
-
-          # 2. Быстро передаем 15MB архив напрямую
-          sshpass -e scp -o StrictHostKeyChecking=no -P $PORT frontend-build.tar.gz $USER@$HOST:~/projects/messenger-frontend/
-
-          # 3. Распаковываем и перезапускаем PM2
-          sshpass -e ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "
+          # Прямая передача через SSH pipe в tar (100% совместимо со всеми VPS)
+          cat frontend-build.tar.gz | sshpass -e ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "
+            mkdir -p ~/projects/messenger-frontend &&
             cd ~/projects/messenger-frontend &&
-            tar -xzf frontend-build.tar.gz &&
-            rm -f frontend-build.tar.gz &&
+            tar -xzf - &&
             npm install --production --prefer-offline || true &&
             pm2 restart messenger-client || pm2 start npm --name 'messenger-client' -- start &&
             echo '✅ Messenger Frontend deployed successfully!'
