@@ -1,3 +1,5 @@
+"use client";
+
 import styles from "./callOverlay.module.css";
 import { useCallStore } from "@/store";
 import { leaveMediasoupRoom } from "@/lib/mediasoupManager";
