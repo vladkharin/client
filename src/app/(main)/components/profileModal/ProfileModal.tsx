@@ -1,11 +1,10 @@
-"use client";
-
 import { useState, useEffect, FormEvent } from "react";
 import { useUserStore, useSocketStore } from "@/store";
 import { getMe, updateProfile } from "@/API/routes";
 import { REQUESTS } from "@/commands/commands";
 import VoiceSettingsTab from "./VoiceSettingsTab";
 import styles from "./profileModal.module.css";
+import { toast } from "react-toastify";
 
 const STATUS_EMOJIS = ["🎮", "💻", "🏖️", "☕", "🚀", "🎧", "📚", "🔥", "✨", "💤"];
 
@@ -24,9 +23,18 @@ export default function ProfileModal() {
 
   const { sendMessage } = useSocketStore();
 
-  const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance" | "voice">(
+  const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance" | "voice" | "notifications">(
     profileModalTab || "profile",
   );
+
+  const [notifPermission, setNotifPermission] = useState<string>("default");
+  const [countdown, setCountdown] = useState<number>(0);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
 
   useEffect(() => {
     if (profileModalTab) {
@@ -119,6 +127,57 @@ export default function ProfileModal() {
     } catch (e: any) {
       setErrorMessage(e.message || "Ошибка отключения 2FA");
     }
+  };
+
+  const handleRequestPush = async () => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        setNotifPermission(perm);
+        if (perm === "granted") {
+          toast.success("Push-уведомления успешно включены!");
+          new Notification("CraftHive", {
+            body: "Тестовое уведомление: всё работает отлично!",
+            icon: "/icon.png",
+          });
+        } else {
+          toast.warn("Уведомления отклонены или заблокированы");
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Ошибка запроса уведомлений");
+      }
+    }
+  };
+
+  const handleStartPushTest = () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Ваш браузер не поддерживает Notifications API");
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      toast.warn("Сначала разрешите системные уведомления, нажав кнопку выше");
+      return;
+    }
+
+    setCountdown(5);
+    toast.info("⏳ Сверните вкладку! Уведомление сработает через 5 секунд...");
+
+    let current = 5;
+    const interval = setInterval(() => {
+      current -= 1;
+      setCountdown(current);
+      if (current <= 0) {
+        clearInterval(interval);
+        try {
+          new Notification("CraftHive — Тестовое уведомление", {
+            body: "🎉 Тест успешен! Системные уведомления работают идеально.",
+            icon: "/icon.png",
+          });
+        } catch {}
+        toast.success("🎉 Системное уведомление отправлено!");
+      }
+    }, 1000);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -218,6 +277,16 @@ export default function ProfileModal() {
             }}
           >
             🎨 Темы
+          </button>
+          <button
+            type="button"
+            className={`${styles.tabBtn} ${activeTab === "notifications" ? styles.activeTab : ""}`}
+            onClick={() => {
+              setActiveTab("notifications");
+              setProfileModalTab("notifications");
+            }}
+          >
+            🔔 Уведомления
           </button>
         </div>
 
@@ -416,6 +485,81 @@ export default function ProfileModal() {
                 >
                   <span className={styles.themeTitle}>⚡ Киберпанк / Неон</span>
                   <span className={styles.themeSubtitle}>Яркие оранжево-неоновые акценты</span>
+                </div>
+              </div>
+            )}
+
+            {/* ВКЛАДКА 5: УВЕДОМЛЕНИЯ И ТЕСТИРОВАНИЕ */}
+            {activeTab === "notifications" && (
+              <div className={styles.form}>
+                <div className={styles.cardBox}>
+                  <span className={styles.cardTitle}>Статус системных Push-уведомлений</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "12px" }}>
+                    <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>
+                      Разрешение браузера:
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color:
+                          notifPermission === "granted"
+                            ? "#10b981"
+                            : notifPermission === "denied"
+                            ? "#ef4444"
+                            : "#f59e0b",
+                      }}
+                    >
+                      {notifPermission === "granted"
+                        ? "✅ Разрешено"
+                        : notifPermission === "denied"
+                        ? "❌ Заблокировано"
+                        : "⚠️ Требуется разрешение"}
+                    </span>
+                  </div>
+
+                  {notifPermission !== "granted" && (
+                    <button
+                      type="button"
+                      className={styles.actionBtn}
+                      style={{ marginTop: "14px", width: "100%", justifyContent: "center" }}
+                      onClick={handleRequestPush}
+                    >
+                      🔔 Разрешить уведомления в браузере
+                    </button>
+                  )}
+                </div>
+
+                <div className={styles.cardBox}>
+                  <span className={styles.cardTitle}>🧪 Тестирование уведомлений</span>
+                  <span className={styles.cardDesc}>
+                    Нажмите кнопку ниже, чтобы проверить работу всплывающих уведомлений или системного Push.
+                  </span>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "14px" }}>
+                    <button
+                      type="button"
+                      className={styles.secondaryBtn}
+                      style={{ padding: "12px 16px", fontSize: "13px", textAlign: "left", width: "100%", cursor: "pointer" }}
+                      onClick={() => {
+                        toast.info("💬 @svetik: Привет! Это мгновенный тестовый Toast 🎉");
+                      }}
+                    >
+                      ⚡ 1. Мгновенный тест (Toast внутри сайта)
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.actionBtn}
+                      style={{ padding: "12px 16px", fontSize: "13px", textAlign: "left", width: "100%", cursor: "pointer" }}
+                      disabled={countdown > 0}
+                      onClick={handleStartPushTest}
+                    >
+                      {countdown > 0
+                        ? `⏳ Сверните вкладку! Push сработает через ${countdown} сек...`
+                        : "⏱️ 2. Тест системного Push через 5 секунд (успеете свернуть окно)"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
