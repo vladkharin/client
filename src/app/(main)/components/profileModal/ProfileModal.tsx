@@ -2,6 +2,7 @@ import { useState, useEffect, FormEvent } from "react";
 import { useUserStore, useSocketStore } from "@/store";
 import { getMe, updateProfile } from "@/API/routes";
 import { REQUESTS } from "@/commands/commands";
+import { QRCodeSVG } from "qrcode.react";
 import VoiceSettingsTab from "./VoiceSettingsTab";
 import styles from "./profileModal.module.css";
 import { toast } from "react-toastify";
@@ -52,6 +53,7 @@ export default function ProfileModal() {
   // 2FA & Security state
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFactorSecret, setTwoFactorSecret] = useState<string | null>(null);
+  const [twoFactorOtpUrl, setTwoFactorOtpUrl] = useState<string | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [sessions, setSessions] = useState<any[]>([]);
 
@@ -99,6 +101,10 @@ export default function ProfileModal() {
       const res = await sendMessage(REQUESTS.user2faGenerate, {});
       if (res?.secret) {
         setTwoFactorSecret(res.secret);
+        const url =
+          res.otpauthUrl ||
+          `otpauth://totp/CraftHive%20(${encodeURIComponent(username || "user")})?secret=${res.secret}&issuer=CraftHive`;
+        setTwoFactorOtpUrl(url);
       }
     } catch (e: any) {
       setErrorMessage(e.message || "Ошибка генерации 2FA");
@@ -112,9 +118,12 @@ export default function ProfileModal() {
       if (res?.success) {
         setTwoFactorEnabled(true);
         setTwoFactorSecret(null);
-        setSuccessMessage("2FA успешно активирована!");
+        setTwoFactorOtpUrl(null);
+        setTwoFactorCode("");
+        toast.success("2FA успешно активирована!");
       }
     } catch (e: any) {
+      toast.error(e.message || "Неверный код 2FA");
       setErrorMessage(e.message || "Неверный код 2FA");
     }
   };
@@ -123,8 +132,11 @@ export default function ProfileModal() {
     try {
       await sendMessage(REQUESTS.user2faDisable, {});
       setTwoFactorEnabled(false);
-      setSuccessMessage("2FA отключена");
+      setTwoFactorSecret(null);
+      setTwoFactorOtpUrl(null);
+      toast.info("2FA отключена");
     } catch (e: any) {
+      toast.error(e.message || "Ошибка отключения 2FA");
       setErrorMessage(e.message || "Ошибка отключения 2FA");
     }
   };
@@ -426,20 +438,102 @@ export default function ProfileModal() {
                       </button>
                     </div>
                   ) : twoFactorSecret ? (
-                    <div>
-                      <p style={{ fontSize: "12px", color: "var(--primary)" }}>
-                        Секретный ключ: <code>{twoFactorSecret}</code>
-                      </p>
-                      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "12px" }}>
+                      <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                        1. Отсканируйте QR-код в приложении аутентификатора (Google Authenticator, Яндекс.Ключ, 1Password):
+                      </div>
+
+                      <div
+                        style={{
+                          background: "#ffffff",
+                          padding: "14px",
+                          borderRadius: "12px",
+                          width: "fit-content",
+                          margin: "0 auto",
+                          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+                        }}
+                      >
+                        <QRCodeSVG
+                          value={
+                            twoFactorOtpUrl ||
+                            `otpauth://totp/CraftHive%20(${encodeURIComponent(username || "user")})?secret=${twoFactorSecret}&issuer=CraftHive`
+                          }
+                          size={170}
+                          level="M"
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          background: "var(--bg-element)",
+                          border: "1px solid var(--border-color)",
+                          borderRadius: "8px",
+                          padding: "10px 14px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "8px",
+                        }}
+                      >
+                        <div style={{ fontSize: "12px", color: "var(--text-secondary)", wordBreak: "break-all" }}>
+                          Ключ: <strong style={{ color: "var(--primary)", letterSpacing: "1px" }}>{twoFactorSecret}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (twoFactorSecret) {
+                              navigator.clipboard.writeText(twoFactorSecret);
+                              toast.success("Секретный ключ скопирован!");
+                            }
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--border-color)",
+                            color: "var(--text-primary)",
+                            borderRadius: "6px",
+                            padding: "4px 8px",
+                            cursor: "pointer",
+                            fontSize: "11px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          📋 Скопировать
+                        </button>
+                      </div>
+
+                      <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                        2. Введите 6-значный код из приложения для подтверждения:
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px" }}>
                         <input
                           type="text"
                           className={styles.input}
-                          placeholder="6-значный код"
+                          placeholder="000000"
+                          maxLength={6}
                           value={twoFactorCode}
-                          onChange={(e) => setTwoFactorCode(e.target.value)}
+                          onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ""))}
+                          style={{ letterSpacing: "3px", textAlign: "center", fontWeight: 700, fontSize: "16px" }}
                         />
-                        <button type="button" className={styles.actionBtn} onClick={handleVerify2FA}>
+                        <button
+                          type="button"
+                          className={styles.actionBtn}
+                          onClick={handleVerify2FA}
+                          disabled={twoFactorCode.length < 6}
+                        >
                           Подтвердить
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.cancelBtn}
+                          onClick={() => {
+                            setTwoFactorSecret(null);
+                            setTwoFactorOtpUrl(null);
+                            setTwoFactorCode("");
+                          }}
+                          style={{ padding: "0 12px", fontSize: "12px" }}
+                        >
+                          Отмена
                         </button>
                       </div>
                     </div>
