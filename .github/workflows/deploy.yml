@@ -34,28 +34,27 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
           NODE_ENV: production
 
-      - name: 🚚 Transfer Archive to VPS via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "frontend-build.tar.gz"
-          target: "~/projects/messenger-frontend"
-          overwrite: true
+      - name: 🚚 Transfer & Deploy via Native SSH
+        env:
+          SSHPASS: ${{ secrets.SERVER_PASSWORD }}
+          HOST: ${{ secrets.SERVER_HOST }}
+          USER: ${{ secrets.SERVER_USER }}
+          PORT: ${{ secrets.SERVER_PORT || 22 }}
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y sshpass
+          
+          # 1. Создаем папку на сервере если нет
+          sshpass -e ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "mkdir -p ~/projects/messenger-frontend"
 
-      - name: 🔄 Extract & Restart PM2 on VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          script: |
-            cd ~/projects/messenger-frontend || exit 1
-            tar -xzf frontend-build.tar.gz
-            rm -f frontend-build.tar.gz
-            npm install --production --prefer-offline || true
-            pm2 restart messenger-client || pm2 start npm --name "messenger-client" -- start
-            echo "✅ Messenger Frontend deployed successfully!"
+          # 2. Быстро передаем 15MB архив напрямую
+          sshpass -e scp -o StrictHostKeyChecking=no -P $PORT frontend-build.tar.gz $USER@$HOST:~/projects/messenger-frontend/
+
+          # 3. Распаковываем и перезапускаем PM2
+          sshpass -e ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "
+            cd ~/projects/messenger-frontend &&
+            tar -xzf frontend-build.tar.gz &&
+            rm -f frontend-build.tar.gz &&
+            npm install --production --prefer-offline || true &&
+            pm2 restart messenger-client || pm2 start npm --name 'messenger-client' -- start &&
+            echo '✅ Messenger Frontend deployed successfully!'
+          "
