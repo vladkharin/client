@@ -1,38 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
 import { useChatStore } from "@/store/modules/chat";
-import { useSocketStore } from "@/store";
-import { REQUESTS } from "@/commands/commands";
 import styles from "./serverBar.module.css";
 import { ServerItem } from "@/types/types";
 
 export default function ServerBar() {
   const {
     servers,
-    setServers,
     activeServer,
     setActiveServer,
     setCreateServerModalOpen,
     setActiveChat,
   } = useChatStore();
-  const { sendMessage } = useSocketStore();
-
-  useEffect(() => {
-    async function loadServers() {
-      try {
-        const res: any = await sendMessage(REQUESTS.serverList, {});
-        const serverList = Array.isArray(res) ? res : (res?.response ?? []);
-        if (Array.isArray(serverList)) {
-          setServers(serverList);
-        }
-      } catch (err) {
-        console.error("Ошибка загрузки серверов:", err);
-      }
-    }
-
-    loadServers();
-  }, [sendMessage, setServers]);
 
   const handleSelectDM = () => {
     setActiveServer(null);
