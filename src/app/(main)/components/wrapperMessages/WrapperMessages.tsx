@@ -8,6 +8,7 @@ import styles from "./wrapperMessages.module.css";
 import { REQUESTS } from "@/commands/commands";
 import { uploadFile } from "@/API/routes";
 import VoiceMessagePlayer from "./VoiceMessagePlayer";
+import VoiceRoomStage from "./VoiceRoomStage";
 import {
   joinMediasoupRoom,
   leaveMediasoupRoom,
@@ -15,6 +16,28 @@ import {
   toggleCamera,
   toggleScreenShare,
 } from "@/lib/mediasoupManager";
+
+function getAvatarGradient(str: string = "") {
+  const gradients = [
+    "linear-gradient(135deg, #f97316, #fb923c)",
+    "linear-gradient(135deg, #6366f1, #a855f7)",
+    "linear-gradient(135deg, #ec4899, #f43f5e)",
+    "linear-gradient(135deg, #10b981, #14b8a6)",
+    "linear-gradient(135deg, #3b82f6, #06b6d4)",
+    "linear-gradient(135deg, #eab308, #f97316)",
+  ];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % gradients.length;
+  return gradients[index];
+}
+
+function getInitials(name?: string) {
+  if (!name) return "?";
+  return name.slice(0, 2).toUpperCase();
+}
 
 const POPULAR_EMOJIS = [
   "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇",
@@ -57,6 +80,9 @@ export default function WrapperMessages() {
     isMicMuted,
     isCameraActive,
     isScreenActive,
+    channelParticipants,
+    localVideoStream,
+    remoteVideoStreams,
     setOutgoing,
     setConversationId,
   } = useCallStore();
@@ -64,6 +90,8 @@ export default function WrapperMessages() {
 
   const isVoiceChannel = activeChat?.type === "SERVER_VOICE";
   const isInThisVoiceChannel = inCall && callConvId === activeChat?.id;
+
+  const [voiceViewMode, setVoiceViewMode] = useState<"stage" | "chat">("stage");
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -130,6 +158,9 @@ export default function WrapperMessages() {
   };
 
   useEffect(() => {
+    if (activeChat?.type === "SERVER_VOICE") {
+      setVoiceViewMode("stage");
+    }
     setReplyingTo(null);
     setEditingMessage(null);
     setShowEmojiPicker(false);
@@ -139,7 +170,7 @@ export default function WrapperMessages() {
     if (inputRef.current) inputRef.current.value = "";
     removeSelectedFile();
     cancelRecording();
-  }, [activeChat?.id]);
+  }, [activeChat?.id, activeChat?.type]);
 
   useEffect(() => {
     if (!activeChat?.id || activeChat.isTemporary) {
@@ -536,6 +567,50 @@ export default function WrapperMessages() {
             </div>
 
             <div className={styles.headerActions}>
+              {/* Переключатель Сцена / Чат для голосовых каналов */}
+              {isVoiceChannel && (
+                <div style={{ display: "flex", background: "var(--bg-element)", borderRadius: "8px", padding: "2px", gap: "2px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setVoiceViewMode("stage")}
+                    style={{
+                      background: voiceViewMode === "stage" ? "var(--primary)" : "transparent",
+                      color: voiceViewMode === "stage" ? "#ffffff" : "var(--text-muted)",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    👥 Сцена ({(channelParticipants[activeChat.id] || []).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVoiceViewMode("chat")}
+                    style={{
+                      background: voiceViewMode === "chat" ? "var(--primary)" : "transparent",
+                      color: voiceViewMode === "chat" ? "#ffffff" : "var(--text-muted)",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    💬 Чат
+                  </button>
+                </div>
+              )}
+
               <button
                 className={styles.iconBtn}
                 onClick={() => setSearchOpen(!searchOpen)}
@@ -574,159 +649,105 @@ export default function WrapperMessages() {
             </div>
           </div>
 
-          {/* Discord-style Voice Room Stage Banner */}
-          {isVoiceChannel && (
-            <div
-              style={{
-                background: "linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(99, 102, 241, 0.12))",
-                borderBottom: "1px solid var(--border-color)",
-                padding: "14px 20px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: "12px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{ fontSize: "28px" }}>🔊</div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "16px", color: "var(--text-primary)" }}>
-                    {activeChat.name || "Голосовой канал"}
+          {/* ЕСЛИ ГОЛОСОВОЙ КАНАЛ И ВЫБРАН РЕЖИМ СЦЕНЫ — ПОКАЗЫВАЕМ ПОЛНОЦЕННУЮ СЦЕНУ */}
+          {isVoiceChannel && voiceViewMode === "stage" ? (
+            <VoiceRoomStage
+              conversationId={activeChat.id}
+              channelName={activeChat.name || "Голосовой канал"}
+              isInRoom={isInThisVoiceChannel}
+              participants={channelParticipants[activeChat.id] || []}
+              isMicMuted={isMicMuted}
+              isCameraActive={isCameraActive}
+              isScreenActive={isScreenActive}
+              localVideoStream={localVideoStream}
+              remoteVideoStreams={remoteVideoStreams}
+              viewMode={voiceViewMode}
+              onToggleViewMode={setVoiceViewMode}
+            />
+          ) : (
+            <>
+              {/* Discord-style Voice Room Stage Banner (при переключении в текстовый чат) */}
+              {isVoiceChannel && (
+                <div
+                  style={{
+                    background: "linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(99, 102, 241, 0.12))",
+                    borderBottom: "1px solid var(--border-color)",
+                    padding: "10px 18px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ fontSize: "20px" }}>🔊</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>
+                        {activeChat.name} • Текстовый чат канала
+                      </div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                        {isInThisVoiceChannel
+                          ? "🟢 Вы подключены к голосовой связи"
+                          : "Нажмите «Сцена», чтобы открыть показ участников и видео"}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                    {isInThisVoiceChannel
-                      ? "🟢 Вы находитесь в голосовом канале (RTC Подключено)"
-                      : "Нажмите «Войти в голосовой», чтобы подключиться к голосовой комнате"}
-                  </div>
-                </div>
-              </div>
 
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                {isInThisVoiceChannel ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={toggleMuteMic}
-                      style={{
-                        background: isMicMuted ? "rgba(239, 68, 68, 0.2)" : "var(--bg-element)",
-                        border: "1px solid var(--border-color)",
-                        color: isMicMuted ? "#ef4444" : "var(--text-primary)",
-                        borderRadius: "8px",
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        fontSize: "13px",
-                      }}
-                      title={isMicMuted ? "Включить микрофон" : "Выключить микрофон"}
-                    >
-                      {isMicMuted ? "🔇 Микр выкл" : "🎙️ Микрофон"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={toggleCamera}
-                      style={{
-                        background: isCameraActive ? "rgba(16, 185, 129, 0.2)" : "var(--bg-element)",
-                        border: "1px solid var(--border-color)",
-                        color: isCameraActive ? "#10b981" : "var(--text-primary)",
-                        borderRadius: "8px",
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        fontSize: "13px",
-                      }}
-                      title="Камера"
-                    >
-                      {isCameraActive ? "📹 Камера вкл" : "📷 Камера"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={toggleScreenShare}
-                      style={{
-                        background: isScreenActive ? "rgba(16, 185, 129, 0.2)" : "var(--bg-element)",
-                        border: "1px solid var(--border-color)",
-                        color: isScreenActive ? "#10b981" : "var(--text-primary)",
-                        borderRadius: "8px",
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        fontSize: "13px",
-                      }}
-                      title="Демонстрация экрана"
-                    >
-                      {isScreenActive ? "💻 Экран вкл" : "🖥️ Демонстрация"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProfileModalOpen(true, "voice")}
-                      style={{
-                        background: "var(--bg-element)",
-                        border: "1px solid var(--border-color)",
-                        color: "var(--text-primary)",
-                        borderRadius: "8px",
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        fontSize: "13px",
-                      }}
-                      title="Настройки звука и микрофона"
-                    >
-                      ⚙️
-                    </button>
-                    <button
-                      type="button"
-                      onClick={leaveMediasoupRoom}
-                      style={{
-                        background: "rgba(239, 68, 68, 0.15)",
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
-                        color: "#ef4444",
-                        borderRadius: "8px",
-                        padding: "8px 14px",
-                        cursor: "pointer",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Отключиться
-                    </button>
-                  </>
-                ) : (
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                     <button
                       type="button"
-                      onClick={() => joinMediasoupRoom(activeChat.id)}
-                      style={{
-                        background: "var(--primary)",
-                        border: "none",
-                        color: "#ffffff",
-                        borderRadius: "8px",
-                        padding: "8px 16px",
-                        cursor: "pointer",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        boxShadow: "0 0 12px var(--primary-glow)",
-                      }}
-                    >
-                      🟢 Подключиться к каналу
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProfileModalOpen(true, "voice")}
+                      onClick={() => setVoiceViewMode("stage")}
                       style={{
                         background: "var(--bg-element)",
                         border: "1px solid var(--border-color)",
                         color: "var(--text-primary)",
                         borderRadius: "8px",
-                        padding: "8px 12px",
+                        padding: "6px 12px",
                         cursor: "pointer",
-                        fontSize: "13px",
+                        fontSize: "12px",
+                        fontWeight: 600,
                       }}
-                      title="Настройки звука и микрофона"
                     >
-                      ⚙️
+                      👥 Открыть сцену
                     </button>
+                    {isInThisVoiceChannel ? (
+                      <button
+                        type="button"
+                        onClick={toggleMuteMic}
+                        style={{
+                          background: isMicMuted ? "rgba(239, 68, 68, 0.2)" : "var(--bg-element)",
+                          border: "1px solid var(--border-color)",
+                          color: isMicMuted ? "#ef4444" : "var(--text-primary)",
+                          borderRadius: "8px",
+                          padding: "6px 10px",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {isMicMuted ? "🔇 Микр выкл" : "🎙️ Микрофон"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => joinMediasoupRoom(activeChat.id)}
+                        style={{
+                          background: "var(--primary)",
+                          border: "none",
+                          color: "#ffffff",
+                          borderRadius: "8px",
+                          padding: "6px 12px",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        🟢 Войти в голос
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-
-          )}
+                </div>
+              )}
 
           {/* Строка поиска по чату */}
           {searchOpen && (
@@ -797,6 +818,15 @@ export default function WrapperMessages() {
                       <div
                         className={`${styles.message_row} ${isSelf ? styles.row_self : styles.row_other}`}
                       >
+                        {!isSelf && (
+                          <div
+                            className={styles.message_avatar}
+                            style={{ background: getAvatarGradient(message.sender.username) }}
+                            title={`@${message.sender.username || "пользователь"}`}
+                          >
+                            {getInitials(message.sender.username)}
+                          </div>
+                        )}
                         <div
                           className={`${styles.message_bubble} ${
                             isSelf ? styles.bubble_self : styles.bubble_other
@@ -1144,6 +1174,8 @@ export default function WrapperMessages() {
           </div>
         </>
       )}
+    </>
+  )}
 
       {/* Лайтбокс просмотрщика фото на весь экран */}
       {fullscreenImage && (
