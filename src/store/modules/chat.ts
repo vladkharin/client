@@ -14,6 +14,7 @@ interface IncomingCall {
 
 export interface MessageChat {
   content: string;
+  imageUrl?: string;
   conversationId: number;
   createdAt: string;
   id: number;

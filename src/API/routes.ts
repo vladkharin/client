@@ -91,3 +91,37 @@ export async function unregisterPushToken(token: string) {
   return await f("DELETE", JSON.stringify({ token }), "/push/unregister");
 }
 
+// --- Загрузка изображений (Cloudinary) ---
+
+export async function uploadImage(file: File): Promise<{ success: boolean; url: string; width?: number; height?: number }> {
+  const { server } = useGlobalStore.getState();
+  const token =
+    useUserStore.getState().token ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("token") || localStorage.getItem("auth_token")
+      : null);
+
+  const API_URL = server === SERVER_TYPE.PROD ? PROD_API_URL : DEV_API_URL;
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_URL}/upload/image`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  const resData = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(resData?.message || `Ошибка загрузки: ${response.status}`);
+  }
+
+  return resData;
+}
+
+
