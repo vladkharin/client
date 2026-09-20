@@ -30,12 +30,15 @@ export default function Page() {
         <MainHeader />
         <div className={`${styles.content} ${activeChat ? styles.hasActiveChat : styles.noActiveChat}`}>
           {/* Левая боковая панель серверов */}
-          <ServerBar />
+          <div className={styles.serverBarContainer}>
+            <ServerBar />
+          </div>
 
           {/* Список чатов или каналов сервера */}
           <div className={styles.chatListContainer}>
             <ChatList />
           </div>
+
 
           {/* Сообщения активного диалога */}
           <div className={styles.messagesContainer}>

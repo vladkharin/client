@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useChatStore } from "@/store/modules/chat";
 import styles from "./chatList.module.css";
 import { CHAT } from "@/types/types";
@@ -48,16 +49,35 @@ export default function ChatList() {
     isChatsLoading,
     setIsMessagesLoading,
   } = useChatStore();
-  const { user_id, setProfileModalOpen } = useUserStore();
+
+  const { user_id, username: currentUsername, setProfileModalOpen } = useUserStore();
   const { sendMessage } = useSocketStore();
   const {
-
     inCall,
     conversationId: callConvId,
     isMicMuted,
     isCameraActive,
     isScreenActive,
+    channelParticipants,
+    setChannelParticipants,
   } = useCallStore();
+
+  useEffect(() => {
+    if (activeServer?.channels) {
+      const voiceChs = activeServer.channels.filter((c) => c.type === "SERVER_VOICE");
+      voiceChs.forEach((ch) => {
+        sendMessage(REQUESTS.getRoomUsers, { conversationId: ch.id })
+          .then((res: any) => {
+            const list = Array.isArray(res) ? res : (res?.response ?? []);
+            if (Array.isArray(list)) {
+              setChannelParticipants(ch.id, list);
+            }
+          })
+          .catch(() => {});
+      });
+    }
+  }, [activeServer?.id, activeServer?.channels, sendMessage, setChannelParticipants]);
+
 
   const isOwner = activeServer?.ownerId === user_id || activeServer?.role === "OWNER";
 
@@ -370,22 +390,70 @@ export default function ChatList() {
           <div className={styles.chats_list}>
             {voiceChannels.map((channel) => {
               const isActive = activeChat?.id === channel.id;
+              const channelUsers = channelParticipants[channel.id] || [];
+              const isMeInChannel = inCall && callConvId === channel.id;
+              const mergedUsers = [...channelUsers];
+              if (isMeInChannel && user_id && !mergedUsers.some((u) => u.id === user_id)) {
+                mergedUsers.unshift({
+                  id: user_id,
+                  username: currentUsername || "Я",
+                  hasAudio: !isMicMuted,
+                  hasVideo: isCameraActive,
+                });
+              }
+
               return (
-                <div
-                  key={channel.id}
-                  className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
-                  onClick={() => chatClicked(channel)}
-                >
-                  <div className={styles.chat_avatar} style={{ background: "transparent", fontSize: "18px" }}>
-                    🔊
+                <div className={styles.voice_channel_container} key={channel.id}>
+                  <div
+                    className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
+                    onClick={() => chatClicked(channel)}
+                  >
+                    <div className={styles.chat_avatar} style={{ background: "transparent", fontSize: "18px" }}>
+                      🔊
+                    </div>
+                    <div className={styles.chat_content}>
+                      <span className={styles.chat_name}>{channel.name}</span>
+                    </div>
+                    {mergedUsers.length > 0 && (
+                      <span className={styles.count_badge} style={{ fontSize: "11px" }}>
+                        {mergedUsers.length}
+                      </span>
+                    )}
                   </div>
-                  <div className={styles.chat_content}>
-                    <span className={styles.chat_name}>{channel.name}</span>
-                  </div>
+
+                  {mergedUsers.length > 0 && (
+                    <div className={styles.voice_users_list}>
+                      {mergedUsers.map((user) => {
+                        const isMe = user.id === user_id;
+                        const userMuted = isMe ? isMicMuted : !user.hasAudio;
+                        const userCam = isMe ? isCameraActive : user.hasVideo;
+
+                        return (
+                          <div key={user.id} className={styles.voice_user_row} title={user.username}>
+                            <div
+                              className={`${styles.voice_user_avatar} ${!userMuted ? styles.voice_user_speaking : ""}`}
+                              style={{ background: getAvatarGradient(user.username) }}
+                            >
+                              {getInitials(user.name || user.username)}
+                            </div>
+                            <span className={styles.voice_user_name}>
+                              {user.username} {isMe ? "(Вы)" : ""}
+                            </span>
+                            <div className={styles.voice_user_icons}>
+                              {userCam && <span>📹</span>}
+                              {userMuted && <span>🔇</span>}
+                              {!userMuted && <span>🎙️</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
+
         </div>
 
         {voiceConnectedWidget}

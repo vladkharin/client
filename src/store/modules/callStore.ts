@@ -14,6 +14,18 @@ interface LocalProducer {
   track: MediaStreamTrack;
 }
 
+export interface ChannelUser {
+  id: number;
+  username: string;
+  name?: string | null;
+  surname?: string | null;
+  avatar?: string | null;
+  customStatus?: string | null;
+  statusEmoji?: string | null;
+  hasAudio?: boolean;
+  hasVideo?: boolean;
+}
+
 interface CallState {
   // Состояние комнаты
   inCall: boolean;
@@ -33,11 +45,13 @@ interface CallState {
   remoteParticipants: RemoteParticipant[];
   remoteVideoStreams: Record<string, MediaStream>; // peerId -> MediaStream
   consumers: Record<string, mediasoup.types.Consumer>;
+  channelParticipants: Record<number, ChannelUser[]>; // conversationId -> users in voice channel
 
   // Методы
   setOutgoing: (isOutgoing: boolean) => void;
   setConversationId: (id: number | null) => void;
   setInCall: (inCall: boolean) => void;
+  setChannelParticipants: (conversationId: number, users: ChannelUser[]) => void;
 
   addRemoteParticipant: (peerId: string, producerId: string, audio: HTMLAudioElement) => void;
   removeRemoteParticipant: (producerId: string) => void;
@@ -72,6 +86,7 @@ export const useCallStore = create<CallState>()(
       remoteParticipants: [],
       remoteVideoStreams: {},
       consumers: {},
+      channelParticipants: {},
 
       setOutgoing: (isOutgoing) => set({ isOutgoing }),
 
@@ -82,6 +97,14 @@ export const useCallStore = create<CallState>()(
         }),
 
       setInCall: (inCall) => set({ inCall }),
+
+      setChannelParticipants: (conversationId, users) =>
+        set((state) => ({
+          channelParticipants: {
+            ...state.channelParticipants,
+            [conversationId]: users,
+          },
+        })),
 
       addRemoteParticipant: (peerId, producerId, audio) =>
         set((state) => {

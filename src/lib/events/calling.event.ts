@@ -78,4 +78,17 @@ export const CallingEvents = (socket: Socket) => {
     setIncomingCall(null);
     reset();
   });
+
+  socket.off("voice:roomUsers");
+  socket.on("voice:roomUsers", (data: { conversationId: number; users: any[] }) => {
+    console.log("👥 [voice:roomUsers] Обновлен список участников канала:", data);
+    useCallStore.getState().setChannelParticipants(data.conversationId, data.users || []);
+  });
+
+  socket.off("call:peerLeft");
+  socket.on("call:peerLeft", (data: { userId: number }) => {
+    console.log("👋 [call:peerLeft] Пользователь вышел:", data.userId);
+    useCallStore.getState().removeRemoteParticipant(String(data.userId));
+  });
 };
+

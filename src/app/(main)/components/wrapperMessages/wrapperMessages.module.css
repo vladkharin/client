@@ -736,21 +736,26 @@
 
 /* НИЖНЯЯ ПАНЕЛЬ ВВОДА */
 .input_container {
-  padding: 12px 18px;
+  padding: 10px 16px;
   background-color: var(--bg-card);
   border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   gap: 8px;
   box-sizing: border-box;
+  width: 100%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 
 .attach_btn {
   background: var(--bg-element);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
   border-radius: var(--radius);
   cursor: pointer;
   display: flex;
@@ -769,7 +774,8 @@
 
 .text_input {
   flex: 1;
-  height: 40px;
+  min-width: 0;
+  height: 38px;
   background-color: var(--bg-element);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
@@ -787,11 +793,11 @@
 }
 
 .send_button {
-  height: 40px;
+  height: 38px;
   background: var(--primary-gradient);
   color: #ffffff;
   border: none;
-  padding: 0 18px;
+  padding: 0 16px;
   border-radius: var(--radius);
   cursor: pointer;
   font-weight: 600;
@@ -799,6 +805,15 @@
   transition: all var(--transition);
   flex-shrink: 0;
   box-shadow: 0 2px 10px var(--primary-glow);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.send_btn_icon {
+  display: none;
 }
 
 .send_button:hover:not(:disabled) {
@@ -811,6 +826,7 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 
 /* ЗАГРУЗКА И ПУСТОТА */
 .messages_loading,
@@ -1071,7 +1087,28 @@
   }
 
   .input_container {
-    padding: 10px 12px;
+    padding: 8px 10px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    gap: 6px;
+  }
+
+  .attach_btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    font-size: 15px;
+  }
+
+  .text_input {
+    height: 36px;
+    font-size: 13px;
+    padding: 0 10px;
+  }
+
+  .send_button {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
   }
 
   .upper_menu {
@@ -1083,3 +1120,44 @@
     width: 260px;
   }
 }
+
+@media (max-width: 520px) {
+  .input_container {
+    padding: 6px 8px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 6px));
+    gap: 4px;
+  }
+
+  .attach_btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 14px;
+  }
+
+  .send_btn_text {
+    display: none;
+  }
+
+  .send_btn_icon {
+    display: inline-block;
+    font-size: 14px;
+  }
+
+  .send_button {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .scroll_to_bottom_btn {
+    right: 14px;
+    bottom: 70px;
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+}
+

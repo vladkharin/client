@@ -1066,10 +1066,23 @@ export default function WrapperMessages() {
                   disabled={isUploading}
                   title="Отправить"
                 >
-                  {isUploading ? "..." : editingMessage ? "Сохранить" : "Отправить"}
+                  {isUploading ? (
+                    "..."
+                  ) : editingMessage ? (
+                    <>
+                      <span className={styles.send_btn_text}>Сохранить</span>
+                      <span className={styles.send_btn_icon}>✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={styles.send_btn_text}>Отправить</span>
+                      <span className={styles.send_btn_icon}>➤</span>
+                    </>
+                  )}
                 </button>
               </div>
             )}
+
           </div>
         </>
       )}

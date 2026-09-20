@@ -58,7 +58,9 @@ export const REQUESTS = {
   consume: 'mediasoup:consume',
   leaveRoom: 'mediasoup:leaveRoom',
   resume: 'mediasoup:resume',
+  getRoomUsers: 'mediasoup:getRoomUsers',
 } as const;
+
 
 export const NOTIFICATIONS = {
   directChatNew: 'notification.direct.chat.new',
