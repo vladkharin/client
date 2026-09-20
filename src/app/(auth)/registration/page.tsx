@@ -43,7 +43,7 @@ export default function Page() {
 
     if (errorCount === 0) {
       try {
-        const { password_confirmed, ...dataToSend } = formState;
+        const { password_confirmed: _password_confirmed, ...dataToSend } = formState;
 
         // 1. Регистрируем пользователя
         await registration(JSON.stringify(dataToSend));

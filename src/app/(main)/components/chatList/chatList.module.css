@@ -5,74 +5,113 @@
   flex-direction: column;
   background-color: var(--bg-main);
   border-right: 1px solid var(--border-color);
-  padding: 10px;
+  padding: 12px 10px;
   box-sizing: border-box;
   overflow-y: auto;
+  gap: 16px;
 }
 
-.titles {
-  padding: 10px 5px;
-  color: var(--text-secondary);
-  font-size: 12px;
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section_title {
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.count_badge {
+  background: var(--bg-element);
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-color);
+}
+
+.chats_list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 /* Элемент списка чатов */
 .chat_item {
   display: flex;
-  flex-direction: column;
-  padding: 12px 15px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
   border-radius: var(--radius);
   cursor: pointer;
   transition: all var(--transition);
   background: transparent;
   border: 1px solid transparent;
-  margin-bottom: 2px;
+  position: relative;
 }
 
 .chat_item:hover {
   background-color: var(--bg-card);
-  color: var(--text-primary);
+  border-color: var(--border-color);
+  transform: translateX(2px);
 }
 
 /* Стиль для активного (выбранного) чата */
 .chat_item_active {
   background-color: var(--bg-element) !important;
-  border-color: var(--primary-glow);
+  border-color: rgba(249, 115, 22, 0.4) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
-.chat_item_active .name {
-  color: var(--primary); /* Оранжевое имя при активации */
+.chat_item_active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 15%;
+  height: 70%;
+  width: 3px;
+  background: var(--primary);
+  border-radius: 0 4px 4px 0;
 }
 
-/* Имя и Фамилия */
-.name {
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis; /* Если имя слишком длинное */
-}
-
-.chat_item:hover .username {
-  color: var(--primary);
-  opacity: 0.8;
-}
-
-.group_header {
+.chat_avatar {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.group_icon {
+  justify-content: center;
+  color: #ffffff;
   font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
-.group_name {
+.chat_content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.chat_name_row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat_name {
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
@@ -81,87 +120,41 @@
   text-overflow: ellipsis;
 }
 
-.group_meta {
+.chat_item_active .chat_name {
+  color: #ffffff;
+}
+
+.chat_item:hover .chat_name {
+  color: var(--primary-hover);
+}
+
+.chat_meta,
+.chat_status {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat_item_active .chat_meta,
+.chat_item_active .chat_status {
   color: var(--text-secondary);
-  font-size: 11px;
-  margin-top: 2px;
 }
 
-.chat_item:hover .group_name {
-  color: var(--primary);
-}
-
-/* Скелетон загрузки */
-.skeleton_item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 15px;
-  border-radius: var(--radius);
-  margin-bottom: 6px;
-  background: var(--bg-card);
-}
-
-.skeleton_avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.04) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton_text_group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-}
-
-.skeleton_title {
-  width: 65%;
-  height: 14px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.04) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.skeleton_subtitle {
-  width: 40%;
-  height: 10px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-.loading_hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 5px;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
+/* Пустые состояния */
 .empty_state {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 30px 15px;
+  padding: 30px 16px;
   color: var(--text-secondary);
   gap: 8px;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px dashed var(--border-color);
+  margin-top: 6px;
 }
 
 .empty_icon {
@@ -178,6 +171,82 @@
 .empty_desc {
   font-size: 12px;
   line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.empty_minor {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+/* Скелетоны */
+.skeleton_container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton_item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+}
+
+.skeleton_avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton_text_group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.skeleton_title {
+  width: 65%;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton_subtitle {
+  width: 40%;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.06) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.loading_hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes shimmer {
@@ -194,5 +263,3 @@
     transform: rotate(360deg);
   }
 }
-
-

@@ -13,6 +13,9 @@ export const REQUESTS = {
   messageEdit: "message:edit",
   messageDelete: "message:delete",
   messageRead: "message:read",
+
+  typingStart: "typing:start",
+  typingStop: "typing:stop",
 } as const;
 
 export const NOTIFICATIONS = {
@@ -26,4 +29,7 @@ export const NOTIFICATIONS = {
   messageReceived: "notification.message.received",
   messageUpdated: "notification.message.updated",
   messageDeleted: "notification.message.deleted",
+
+  userTyping: "notification.user.typing",
+  userStatus: "notification.user.status",
 } as const;

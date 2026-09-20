@@ -29,61 +29,96 @@ export default function MainHeader() {
     }
   };
 
-  const openFinderModal = () => {
-    setState(true);
-  };
-
-  const logOutOfYourAccount = () => {
-    logout();
-  };
-
-  const openFriendRequests = () => {
-    setFriendRequestState(true);
-  };
-
-  const openFriendListModal = () => {
-    setFriendListState(true);
-  };
-
-  const openCreateGroupModal = () => {
-    setCreateGroupModalOpen(true);
-  };
-
-  const openProfile = () => {
-    setProfileModalOpen(true);
+  const getInitials = (name?: string | null) => {
+    if (!name) return "U";
+    return name.slice(0, 2).toUpperCase();
   };
 
   return (
-    <div className={styles.wrapper}>
-      <button onClick={openFinderModal}>Поиск</button>
+    <header className={styles.wrapper}>
+      <div className={styles.leftSection}>
+        <div className={styles.brand}>
+          <span className={styles.brandIcon}>⚡</span>
+          <span className={styles.brandTitle}>
+            craft<span>Hive</span>
+          </span>
+        </div>
 
-      {friendRequests.incoming.length > 0 && (
-        <button className={styles.badge_button} onClick={openFriendRequests}>
-          Заявки ({friendRequests.incoming.length})
-        </button>
-      )}
+        <nav className={styles.navGroup}>
+          <button
+            className={styles.navButton}
+            onClick={() => setState(true)}
+            title="Поиск пользователей и чатов"
+          >
+            <span className={styles.btnIcon}>🔍</span>
+            <span>Поиск</span>
+          </button>
 
-      <button onClick={openFriendListModal}>Друзья</button>
-      <button onClick={openCreateGroupModal}>+ Группа</button>
+          <button
+            className={styles.navButton}
+            onClick={() => setFriendListState(true)}
+            title="Список друзей"
+          >
+            <span className={styles.btnIcon}>👥</span>
+            <span>Друзья</span>
+          </button>
+
+          {friendRequests.incoming.length > 0 && (
+            <button
+              className={`${styles.navButton} ${styles.badgeButton}`}
+              onClick={() => setFriendRequestState(true)}
+              title="Входящие заявки в друзья"
+            >
+              <span className={styles.btnIcon}>📩</span>
+              <span>Заявки</span>
+              <span className={styles.badge}>{friendRequests.incoming.length}</span>
+            </button>
+          )}
+
+          <button
+            className={styles.navButton}
+            onClick={() => setCreateGroupModalOpen(true)}
+            title="Создать новую группу"
+          >
+            <span className={styles.btnIcon}>➕</span>
+            <span>Группа</span>
+          </button>
+        </nav>
+      </div>
 
       <div className={styles.rightGroup}>
         {!notifGranted && (
           <button
-            className={styles.profileBtn}
+            className={styles.notifBtn}
             onClick={handleEnableNotifications}
             title="Включить Push-уведомления"
           >
-            🔔 Включить push
+            <span>🔔</span>
+            <span className={styles.notifText}>Push</span>
           </button>
         )}
-        <button className={styles.profileBtn} onClick={openProfile}>
-          👤 {username ? `@${username}` : "Профиль"}
+
+        <button
+          className={styles.profileBtn}
+          onClick={() => setProfileModalOpen(true)}
+          title="Открыть профиль"
+        >
+          <div className={styles.userAvatarSmall}>
+            {getInitials(username)}
+          </div>
+          <span className={styles.userNameText}>
+            {username ? `@${username}` : "Профиль"}
+          </span>
         </button>
-        <button className={styles.logoutBtn} onClick={logOutOfYourAccount}>
-          Выход
+
+        <button
+          className={styles.logoutBtn}
+          onClick={() => logout()}
+          title="Выйти из аккаунта"
+        >
+          <span>Выход</span>
         </button>
       </div>
-    </div>
+    </header>
   );
 }
-

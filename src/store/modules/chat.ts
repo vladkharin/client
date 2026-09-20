@@ -12,12 +12,23 @@ interface IncomingCall {
   conversationId: number;
 }
 
-export interface MessageChat {
+export interface MessageReply {
+  id: number;
   content: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
+  sender: { id: number; username: string };
+}
+
+export interface MessageChat {
+  id: number;
+  content: string;
+  imageUrl?: string | null;
+  editedAt?: string | null;
+  deletedAt?: string | null;
+  replyToId?: number | null;
+  replyTo?: MessageReply | null;
   conversationId: number;
   createdAt: string;
-  id: number;
   sender: { id: number; username: string };
   senderId: number;
 }
@@ -31,6 +42,7 @@ interface CHAT_STATE {
   isChatsLoading: boolean;
   isMessagesLoading: boolean;
   createGroupModalOpen: boolean;
+  typingUsers: Record<number, string[]>;
   setIsChatsLoading: (loading: boolean) => void;
   setIsMessagesLoading: (loading: boolean) => void;
   setCreateGroupModalOpen: (open: boolean) => void;
@@ -42,6 +54,9 @@ interface CHAT_STATE {
   clearAcceptedCall: () => void;
   setMessages: (messages: MessageChat[]) => void;
   addMessage: (message: MessageChat) => void;
+  updateMessage: (messageId: number, content: string, editedAt?: string) => void;
+  deleteMessage: (messageId: number) => void;
+  setUserTyping: (conversationId: number, username: string, isTyping: boolean) => void;
   prependMessages: (messages: MessageChat[]) => void;
 
   findOrCreateDirectChat: (userId: number, username: string) => CHAT;
@@ -62,6 +77,7 @@ export const useChatStore = create<CHAT_STATE>()(
       isChatsLoading: true,
       isMessagesLoading: false,
       createGroupModalOpen: false,
+      typingUsers: {},
       setIsChatsLoading: (isChatsLoading: boolean) => set({ isChatsLoading }),
       setIsMessagesLoading: (isMessagesLoading: boolean) => set({ isMessagesLoading }),
       setCreateGroupModalOpen: (open: boolean) => set({ createGroupModalOpen: open }),
@@ -71,6 +87,29 @@ export const useChatStore = create<CHAT_STATE>()(
       setAcceptedCall: (call) => set({ acceptedCall: call }),
       clearAcceptedCall: () => set({ acceptedCall: null }),
       setMessages: (messages: MessageChat[]) => set({ messages, isMessagesLoading: false }),
+
+      updateMessage: (messageId: number, content: string, editedAt?: string) =>
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === messageId ? { ...m, content, editedAt: editedAt || new Date().toISOString() } : m,
+          ),
+        })),
+
+      deleteMessage: (messageId: number) =>
+        set((state) => ({
+          messages: state.messages.filter((m) => m.id !== messageId),
+        })),
+
+      setUserTyping: (conversationId: number, username: string, isTyping: boolean) =>
+        set((state) => {
+          const currentTypers = state.typingUsers[conversationId] || [];
+          const updated = isTyping
+            ? Array.from(new Set([...currentTypers, username]))
+            : currentTypers.filter((u) => u !== username);
+          return {
+            typingUsers: { ...state.typingUsers, [conversationId]: updated },
+          };
+        }),
 
       addMessage: (message: MessageChat) =>
         set((state) => {

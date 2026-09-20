@@ -1,101 +1,164 @@
 .section {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, #1a1d23 0%, #0a0b0d 100%);
+  background-color: var(--bg-main);
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.glow_bg {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.15) 0%, rgba(99, 102, 241, 0.05) 50%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: blur(40px);
 }
 
 .wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px;
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 30px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  padding: 48px 40px;
+  background: rgba(18, 21, 31, 0.75);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
 }
 
-/* Стилизация текстового логотипа вместо картинки Next.js */
+.brand_badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  margin-bottom: 16px;
+  letter-spacing: 0.3px;
+}
+
 .logo_text {
-  font-size: 3rem;
+  font-size: 2.8rem;
   font-weight: 800;
-  color: #fff;
-  margin-bottom: 40px;
+  color: #ffffff;
+  margin-bottom: 12px;
   letter-spacing: -1px;
 }
 
 .logo_text span {
-  color: var(--primary); /* Оранжевый Hive */
+  color: var(--primary);
+}
+
+.description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 32px;
 }
 
 .buttons {
   display: flex;
-  gap: 20px;
+  gap: 14px;
+  width: 100%;
 }
 
 .button {
+  flex: 1;
   text-decoration: none;
-  padding: 14px 28px;
+  padding: 12px 20px;
   border-radius: var(--radius);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   transition: all var(--transition);
   text-align: center;
-  min-width: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Кнопка регистрации — основная (оранжевая) */
 .button_primary {
-  background-color: var(--primary);
-  color: white;
-  border: 1px solid var(--primary);
+  background: var(--primary-gradient);
+  color: #ffffff;
+  box-shadow: 0 4px 14px var(--primary-glow);
 }
 
 .button_primary:hover {
-  background-color: var(--primary-hover);
-  box-shadow: 0 0 20px var(--primary-glow);
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
 }
 
-/* Кнопка авторизации — вторичная (прозрачная с бордером) */
 .button_secondary {
-  background-color: transparent;
+  background-color: var(--bg-element);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
 }
 
 .button_secondary:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: var(--text-secondary);
+  background-color: var(--bg-element-hover);
+  border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-2px);
 }
 
-.yandex_icon_only {
+.social_divider {
   display: flex;
   align-items: center;
-  justify-content: center;
+  width: 100%;
+  margin: 24px 0 16px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
 
-  /* Размер XXL */
-  width: 60px;
-  height: 60px;
+.social_divider::before,
+.social_divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+}
 
-  background: url("../assets/icons/yandex_logo.svg") center center/cover no-repeat;
+.social_divider span {
+  padding: 0 12px;
+}
 
+.yandex_btn {
+  width: 100%;
+  padding: 12px 20px;
+  background-color: #fc3f1d;
+  color: #ffffff;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
+  transition: all var(--transition);
 }
 
-.yandex_icon_only:hover {
-  transform: scale(1.05);
+.yandex_btn:hover {
+  background-color: #e03212;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(252, 63, 29, 0.35);
 }
 
-.yandex_icon_only:active {
-  transform: scale(0.95);
+@media (max-width: 480px) {
+  .wrapper {
+    padding: 36px 20px;
+  }
+
+  .buttons {
+    flex-direction: column;
+  }
 }

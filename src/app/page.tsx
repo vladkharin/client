@@ -21,22 +21,24 @@ export default function Home() {
     }
   }, [router]);
 
-  // Функция для «ручного» входа через Яндекс
   const handleYandexLogin = () => {
     const DEV_API_URL = "http://localhost:3001/api";
     const PROD_API_URL = "https://api.crafthive.ru/api";
     const API_URL = server === SERVER_TYPE.PROD ? PROD_API_URL : DEV_API_URL;
-
-    // Просто перенаправляем на бэкенд
     window.location.href = `${API_URL}/auth/yandex`;
   };
 
   return (
-    <section className={styles.section}>
+    <main className={styles.section}>
+      <div className={styles.glow_bg} />
       <div className={styles.wrapper}>
+        <div className={styles.brand_badge}>⚡ Мессенджер нового поколения</div>
         <h1 className={styles.logo_text}>
           craft<span>Hive</span>
         </h1>
+        <p className={styles.description}>
+          Быстрый, приватный и удобный мессенджер с поддержкой групповых чатов, голосовых и видеозвонков.
+        </p>
 
         <div className={styles.buttons}>
           <Link href="/registration" className={`${styles.button} ${styles.button_primary}`}>
@@ -46,7 +48,15 @@ export default function Home() {
             Авторизация
           </Link>
         </div>
+
+        <div className={styles.social_divider}>
+          <span>или войти через</span>
+        </div>
+
+        <button className={styles.yandex_btn} onClick={handleYandexLogin} type="button">
+          Войти с Яндекс ID
+        </button>
       </div>
-    </section>
+    </main>
   );
 }
