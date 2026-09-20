@@ -59,6 +59,7 @@ interface CHAT_STATE {
   inComingCall: IncomingCall | null;
   acceptedCall: AcceptedCall | null;
   messages: MessageChat[];
+  firstUnreadId: number | null;
   isChatsLoading: boolean;
   isMessagesLoading: boolean;
   createGroupModalOpen: boolean;
@@ -79,6 +80,7 @@ interface CHAT_STATE {
   setAcceptedCall: (call: AcceptedCall) => void;
   clearAcceptedCall: () => void;
   setMessages: (messages: MessageChat[]) => void;
+  setFirstUnreadId: (id: number | null) => void;
   addMessage: (message: MessageChat) => void;
   updateMessage: (messageId: number, content: string, editedAt?: string) => void;
   deleteMessage: (messageId: number) => void;
@@ -104,6 +106,7 @@ export const useChatStore = create<CHAT_STATE>()(
       inComingCall: null,
       acceptedCall: null,
       messages: [],
+      firstUnreadId: null,
       isChatsLoading: true,
       isMessagesLoading: false,
       createGroupModalOpen: false,
@@ -115,7 +118,7 @@ export const useChatStore = create<CHAT_STATE>()(
       setCreateGroupModalOpen: (open: boolean) => set({ createGroupModalOpen: open }),
       setCreateServerModalOpen: (open: boolean) => set({ createServerModalOpen: open }),
       setChats: (chats: CHAT[]) => set({ chats, isChatsLoading: false }),
-      setActiveChat: (chat: CHAT | null) => set({ activeChat: chat }),
+      setActiveChat: (chat: CHAT | null) => set({ activeChat: chat, firstUnreadId: null }),
       setServers: (servers: ServerItem[]) => set({ servers }),
       addServer: (server: ServerItem) => set((state) => ({ servers: [...state.servers, server] })),
       setActiveServer: (server: ServerItem | null) => set({ activeServer: server }),
@@ -123,6 +126,7 @@ export const useChatStore = create<CHAT_STATE>()(
       setAcceptedCall: (call) => set({ acceptedCall: call }),
       clearAcceptedCall: () => set({ acceptedCall: null }),
       setMessages: (messages: MessageChat[]) => set({ messages, isMessagesLoading: false }),
+      setFirstUnreadId: (firstUnreadId: number | null) => set({ firstUnreadId }),
 
       updateMessage: (messageId: number, content: string, editedAt?: string) =>
         set((state) => ({

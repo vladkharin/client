@@ -144,8 +144,10 @@ export default function ChatList() {
       });
       if (response?.messages) {
         setMessages(response.messages);
+        useChatStore.getState().setFirstUnreadId(response.firstUnreadId || null);
       } else {
         setMessages([]);
+        useChatStore.getState().setFirstUnreadId(null);
       }
     } catch (err) {
       console.error("Ошибка загрузки сообщений:", err);

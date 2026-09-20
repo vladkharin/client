@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useSocketStore, useUserStore } from "@/store";
 import { useChatStore, MessageChat } from "@/store/modules/chat";
 import { useCallStore } from "@/store";
@@ -38,7 +38,7 @@ function formatTime(dateString?: string) {
 }
 
 export default function WrapperMessages() {
-  const { activeChat, setActiveChat, messages, isMessagesLoading, typingUsers, deleteMessage } = useChatStore();
+  const { activeChat, setActiveChat, messages, firstUnreadId, isMessagesLoading, typingUsers, deleteMessage } = useChatStore();
   const { sendMessage } = useSocketStore();
   const {
     inCall,
@@ -58,6 +58,7 @@ export default function WrapperMessages() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
 
   // Phase 1-3 States
   const [replyingTo, setReplyingTo] = useState<MessageChat | null>(null);
@@ -78,12 +79,52 @@ export default function WrapperMessages() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef(false);
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const unreadSeparatorRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+
+  const scrollToUnreadOrBottom = () => {
+    if (firstUnreadId && unreadSeparatorRef.current) {
+      unreadSeparatorRef.current.scrollIntoView({ behavior: "auto", block: "center" });
+    } else {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+  };
+
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      const timer = setTimeout(() => {
+        scrollToUnreadOrBottom();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [activeChat?.id, messages?.length]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 150;
+    setShowScrollBottom(!isNearBottom);
+  };
+
   useEffect(() => {
     setReplyingTo(null);
     setEditingMessage(null);
     setShowEmojiPicker(false);
     setSearchOpen(false);
     setSearchQuery("");
+    setShowScrollBottom(false);
     if (inputRef.current) inputRef.current.value = "";
     removeSelectedFile();
     cancelRecording();
@@ -627,7 +668,11 @@ export default function WrapperMessages() {
           )}
 
           <div className={styles.wrapper_messages}>
-            <div className={styles.scroller_messages}>
+            <div
+              ref={messagesContainerRef}
+              className={styles.scroller_messages}
+              onScroll={handleScroll}
+            >
               {isMessagesLoading ? (
                 <div className={styles.messages_loading}>
                   <div className={styles.messages_spinner} />
@@ -636,6 +681,7 @@ export default function WrapperMessages() {
               ) : displayedMessages.length > 0 ? (
                 displayedMessages.map((message) => {
                   const isSelf = message.sender.id === user_id;
+                  const isFirstUnread = message.id === firstUnreadId;
                   const time = formatTime(message.createdAt);
 
                   // Group reactions by emoji
@@ -649,158 +695,164 @@ export default function WrapperMessages() {
                   });
 
                   return (
-                    <div
-                      key={message.id}
-                      className={`${styles.message_row} ${isSelf ? styles.row_self : styles.row_other}`}
-                    >
-                      <div
-                        className={`${styles.message_bubble} ${
-                          isSelf ? styles.bubble_self : styles.bubble_other
-                        }`}
-                      >
-                        {/* Действия над сообщением */}
-                        <div className={styles.message_actions}>
-                          {REACTION_LIST.map((emoji) => (
-                            <button
-                              key={emoji}
-                              className={styles.action_btn}
-                              onClick={() => handleToggleReaction(message.id, emoji)}
-                              title={`Реакция ${emoji}`}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                          <button
-                            className={styles.action_btn}
-                            onClick={() => handleStartReply(message)}
-                            title="Ответить"
-                          >
-                            ↩️
-                          </button>
-                          <button
-                            className={styles.action_btn}
-                            onClick={() => handlePinMessage(message.id)}
-                            title="Закрепить"
-                          >
-                            📌
-                          </button>
-                          {isSelf && (
-                            <>
-                              <button
-                                className={styles.action_btn}
-                                onClick={() => handleStartEdit(message)}
-                                title="Редактировать"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                className={`${styles.action_btn} ${styles.action_btn_delete}`}
-                                onClick={() => handleDeleteMessage(message.id)}
-                                title="Удалить"
-                              >
-                                🗑️
-                              </button>
-                            </>
-                          )}
+                    <React.Fragment key={message.id}>
+                      {isFirstUnread && (
+                        <div ref={unreadSeparatorRef} className={styles.unread_separator}>
+                          <span>Новые сообщения</span>
                         </div>
-
-                        {/* Цитата / ответ */}
-                        {message.replyTo && (
-                          <div className={styles.quote_block}>
-                            <span className={styles.quote_author}>
-                              {message.replyTo.sender?.username || "Пользователь"}
-                            </span>
-                            <span className={styles.quote_text}>
-                              {message.replyTo.content || "Медиафайл"}
-                            </span>
+                      )}
+                      <div
+                        className={`${styles.message_row} ${isSelf ? styles.row_self : styles.row_other}`}
+                      >
+                        <div
+                          className={`${styles.message_bubble} ${
+                            isSelf ? styles.bubble_self : styles.bubble_other
+                          }`}
+                        >
+                          {/* Действия над сообщением */}
+                          <div className={styles.message_actions}>
+                            {REACTION_LIST.map((emoji) => (
+                              <button
+                                key={emoji}
+                                className={styles.action_btn}
+                                onClick={() => handleToggleReaction(message.id, emoji)}
+                                title={`Реакция ${emoji}`}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                            <button
+                              className={styles.action_btn}
+                              onClick={() => handleStartReply(message)}
+                              title="Ответить"
+                            >
+                              ↩️
+                            </button>
+                            <button
+                              className={styles.action_btn}
+                              onClick={() => handlePinMessage(message.id)}
+                              title="Закрепить"
+                            >
+                              📌
+                            </button>
+                            {isSelf && (
+                              <>
+                                <button
+                                  className={styles.action_btn}
+                                  onClick={() => handleStartEdit(message)}
+                                  title="Редактировать"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  className={`${styles.action_btn} ${styles.action_btn_delete}`}
+                                  onClick={() => handleDeleteMessage(message.id)}
+                                  title="Удалить"
+                                >
+                                  🗑️
+                                </button>
+                              </>
+                            )}
                           </div>
-                        )}
 
-                        {!isSelf && isGroup && (
-                          <div className={styles.message_sender_name}>
-                            {message.sender.username || "участник"}
-                          </div>
-                        )}
-
-                        {/* Изображение */}
-                        {message.imageUrl && (
-                          <div
-                            className={styles.message_image_container}
-                            onClick={() => setFullscreenImage(message.imageUrl || null)}
-                          >
-                            <img
-                              src={message.imageUrl}
-                              alt="Attachment"
-                              className={styles.message_image}
-                              loading="lazy"
-                            />
-                          </div>
-                        )}
-
-                        {/* Голосовое сообщение */}
-                        {message.fileType === "audio" && message.fileUrl && (
-                          <VoiceMessagePlayer src={message.fileUrl} duration={message.audioDuration} />
-                        )}
-
-                        {/* Документ / файл */}
-                        {message.fileUrl && message.fileType !== "audio" && (
-                          <div className={styles.file_card}>
-                            <div className={styles.file_icon}>
-                              {message.fileType === "video" ? "🎥" : "📄"}
-                            </div>
-                            <div className={styles.file_details}>
-                              <span className={styles.file_title}>{message.fileName || "Файл"}</span>
-                              <span className={styles.file_size}>
-                                {message.fileSize ? (message.fileSize / 1024).toFixed(1) + " КБ" : ""}
+                          {/* Цитата / ответ */}
+                          {message.replyTo && (
+                            <div className={styles.quote_block}>
+                              <span className={styles.quote_author}>
+                                {message.replyTo.sender?.username || "Пользователь"}
+                              </span>
+                              <span className={styles.quote_text}>
+                                {message.replyTo.content || "Медиафайл"}
                               </span>
                             </div>
-                            <a
-                              href={message.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              download={message.fileName}
-                              className={styles.file_download_btn}
-                              title="Скачать"
-                            >
-                              ⬇️
-                            </a>
-                          </div>
-                        )}
-
-                        {/* Текст */}
-                        {message.content &&
-                          message.content !== "📷 Фотография" &&
-                          message.content !== "🎙️ Голосовое сообщение" && (
-                            <div className={styles.message_text}>{message.content}</div>
                           )}
 
-                        {/* Реакции под сообщением */}
-                        {Object.keys(reactionMap).length > 0 && (
-                          <div className={styles.reactions_container}>
-                            {Object.entries(reactionMap).map(([emoji, data]) => {
-                              const hasReacted = data.userIds.includes(user_id || 0);
-                              return (
-                                <button
-                                  key={emoji}
-                                  type="button"
-                                  className={`${styles.reaction_chip} ${hasReacted ? styles.reaction_chip_active : ""}`}
-                                  onClick={() => handleToggleReaction(message.id, emoji)}
-                                >
-                                  <span>{emoji}</span>
-                                  <span className={styles.reaction_chip_count}>{data.count}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+                          {!isSelf && isGroup && (
+                            <div className={styles.message_sender_name}>
+                              {message.sender.username || "участник"}
+                            </div>
+                          )}
 
-                        <div className={styles.message_footer}>
-                          <span className={styles.message_time}>{time}</span>
-                          {message.editedAt && <span className={styles.edited_tag}>(ред.)</span>}
-                          {isSelf && <span className={styles.read_status}>✓✓</span>}
+                          {/* Изображение */}
+                          {message.imageUrl && (
+                            <div
+                              className={styles.message_image_container}
+                              onClick={() => setFullscreenImage(message.imageUrl || null)}
+                            >
+                              <img
+                                src={message.imageUrl}
+                                alt="Attachment"
+                                className={styles.message_image}
+                                loading="lazy"
+                              />
+                            </div>
+                          )}
+
+                          {/* Голосовое сообщение */}
+                          {message.fileType === "audio" && message.fileUrl && (
+                            <VoiceMessagePlayer src={message.fileUrl} duration={message.audioDuration} />
+                          )}
+
+                          {/* Документ / файл */}
+                          {message.fileUrl && message.fileType !== "audio" && (
+                            <div className={styles.file_card}>
+                              <div className={styles.file_icon}>
+                                {message.fileType === "video" ? "🎥" : "📄"}
+                              </div>
+                              <div className={styles.file_details}>
+                                <span className={styles.file_title}>{message.fileName || "Файл"}</span>
+                                <span className={styles.file_size}>
+                                  {message.fileSize ? (message.fileSize / 1024).toFixed(1) + " КБ" : ""}
+                                </span>
+                              </div>
+                              <a
+                                href={message.fileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                download={message.fileName}
+                                className={styles.file_download_btn}
+                                title="Скачать"
+                              >
+                                ⬇️
+                              </a>
+                            </div>
+                          )}
+
+                          {/* Текст */}
+                          {message.content &&
+                            message.content !== "📷 Фотография" &&
+                            message.content !== "🎙️ Голосовое сообщение" && (
+                              <div className={styles.message_text}>{message.content}</div>
+                            )}
+
+                          {/* Реакции под сообщением */}
+                          {Object.keys(reactionMap).length > 0 && (
+                            <div className={styles.reactions_container}>
+                              {Object.entries(reactionMap).map(([emoji, data]) => {
+                                const hasReacted = data.userIds.includes(user_id || 0);
+                                return (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    className={`${styles.reaction_chip} ${hasReacted ? styles.reaction_chip_active : ""}`}
+                                    onClick={() => handleToggleReaction(message.id, emoji)}
+                                  >
+                                    <span>{emoji}</span>
+                                    <span className={styles.reaction_chip_count}>{data.count}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <div className={styles.message_footer}>
+                            <span className={styles.message_time}>{time}</span>
+                            {message.editedAt && <span className={styles.edited_tag}>(ред.)</span>}
+                            {isSelf && <span className={styles.read_status}>✓✓</span>}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })
               ) : (
@@ -816,7 +868,20 @@ export default function WrapperMessages() {
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} style={{ height: "1px", width: "100%" }} />
             </div>
+
+            {/* Кнопка прокрутки вниз */}
+            {showScrollBottom && (
+              <button
+                type="button"
+                className={styles.scroll_to_bottom_btn}
+                onClick={() => scrollToBottom("smooth")}
+                title="Прокрутить вниз"
+              >
+                ↓
+              </button>
+            )}
 
             {/* Индикатор набора текста */}
             {currentTypingUsers.length > 0 && (
