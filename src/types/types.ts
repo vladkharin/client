@@ -70,6 +70,7 @@ export interface ServerItem {
   inviteCode: string;
   channels: CHAT[];
   membersCount?: number;
+  role?: string;
 }
 
 export type FriendStatus = "PENDING" | "ACCEPTED" | "BLOCKED";

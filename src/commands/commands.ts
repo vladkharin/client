@@ -31,6 +31,8 @@ export const REQUESTS = {
   serverList: 'server:list',
   serverGet: 'server:get',
   serverJoin: 'server:join',
+  serverDelete: 'server:delete',
+  serverLeave: 'server:leave',
   channelCreate: 'channel:create',
 
   aiQuery: 'ai:query',

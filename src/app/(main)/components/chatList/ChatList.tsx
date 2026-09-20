@@ -31,15 +31,79 @@ function getInitials(name?: string) {
 export default function ChatList() {
   const {
     chats,
+    servers,
+    setServers,
     setActiveChat,
     activeChat,
     activeServer,
+    setActiveServer,
     setMessages,
     isChatsLoading,
     setIsMessagesLoading,
   } = useChatStore();
   const { user_id } = useUserStore();
   const { sendMessage } = useSocketStore();
+
+  const isOwner = activeServer?.ownerId === user_id || activeServer?.role === "OWNER";
+
+  const handleDeleteServer = async () => {
+    if (!activeServer) return;
+    if (!window.confirm(`Вы действительно хотите удалить сервер "${activeServer.name}"? Это действие необратимо.`)) {
+      return;
+    }
+
+    try {
+      await sendMessage(REQUESTS.serverDelete, { serverId: activeServer.id });
+      setServers(servers.filter((s) => s.id !== activeServer.id));
+      setActiveServer(null);
+      setActiveChat(null);
+    } catch (err: any) {
+      alert(err?.message || "Ошибка удаления сервера");
+    }
+  };
+
+  const handleLeaveServer = async () => {
+    if (!activeServer) return;
+    if (!window.confirm(`Вы уверены, что хотите покинуть сервер "${activeServer.name}"?`)) {
+      return;
+    }
+
+    try {
+      await sendMessage(REQUESTS.serverLeave, { serverId: activeServer.id });
+      setServers(servers.filter((s) => s.id !== activeServer.id));
+      setActiveServer(null);
+      setActiveChat(null);
+    } catch (err: any) {
+      alert(err?.message || "Ошибка выхода с сервера");
+    }
+  };
+
+  const handleCreateChannel = async (type: "SERVER_CHANNEL" | "SERVER_VOICE") => {
+    if (!activeServer) return;
+    const name = window.prompt(type === "SERVER_CHANNEL" ? "Введите название текстового канала:" : "Введите название голосового канала:");
+    if (!name || !name.trim()) return;
+
+    try {
+      const res: any = await sendMessage(REQUESTS.channelCreate, {
+        serverId: activeServer.id,
+        name: name.trim(),
+        type,
+      });
+
+      const newChannel = res?.response ?? res;
+      if (newChannel && newChannel.id) {
+        const updatedServer = {
+          ...activeServer,
+          channels: [...(activeServer.channels || []), newChannel],
+        };
+        setActiveServer(updatedServer);
+        setServers(servers.map((s) => (s.id === updatedServer.id ? updatedServer : s)));
+        setActiveChat(newChannel);
+      }
+    } catch (err: any) {
+      alert(err?.message || "Ошибка создания канала");
+    }
+  };
 
   const chatClicked = async (chat: CHAT) => {
     setActiveChat(chat);
@@ -74,20 +138,104 @@ export default function ChatList() {
     return (
       <aside className={styles.chats_wrapper}>
         <div className={styles.section} style={{ paddingTop: "14px" }}>
-          <div className={styles.section_title}>
-            <span>{activeServer.name}</span>
-            <span className={styles.count_badge}>
-              {activeServer.membersCount || 1} участников
+          <div className={styles.section_title} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontWeight: 700, fontSize: "15px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {activeServer.name}
             </span>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <span className={styles.count_badge}>
+                {activeServer.membersCount || 1}
+              </span>
+              {isOwner ? (
+                <button
+                  type="button"
+                  onClick={handleDeleteServer}
+                  title="Удалить сервер"
+                  style={{
+                    background: "rgba(239, 68, 68, 0.15)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    color: "#ef4444",
+                    borderRadius: "6px",
+                    padding: "3px 7px",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                  }}
+                >
+                  🗑️
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLeaveServer}
+                  title="Покинуть сервер"
+                  style={{
+                    background: "rgba(239, 68, 68, 0.15)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    color: "#ef4444",
+                    borderRadius: "6px",
+                    padding: "3px 7px",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                  }}
+                >
+                  🚪
+                </button>
+              )}
+            </div>
           </div>
 
-          <div style={{ padding: "0 14px 10px 14px", fontSize: "11px", color: "var(--text-muted)" }}>
-            Инвайт-код: <code style={{ color: "var(--primary)" }}>{activeServer.inviteCode}</code>
+          <div
+            style={{
+              padding: "4px 14px 10px 14px",
+              fontSize: "11px",
+              color: "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>
+              Инвайт: <code style={{ color: "var(--primary)" }}>{activeServer.inviteCode}</code>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(activeServer.inviteCode);
+                alert("Инвайт-код скопирован в буфер обмена!");
+              }}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "12px",
+              }}
+              title="Скопировать инвайт"
+            >
+              📋
+            </button>
           </div>
 
           {/* Текстовые каналы */}
-          <div className={styles.section_title} style={{ marginTop: "10px" }}>
+          <div className={styles.section_title} style={{ marginTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>Текстовые каналы</span>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => handleCreateChannel("SERVER_CHANNEL")}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--primary)",
+                  cursor: "pointer",
+                  fontSize: "15px",
+                  fontWeight: "bold",
+                  padding: "0 4px",
+                }}
+                title="Создать текстовый канал"
+              >
+                +
+              </button>
+            )}
           </div>
           <div className={styles.chats_list}>
             {textChannels.map((channel) => {
@@ -110,32 +258,46 @@ export default function ChatList() {
           </div>
 
           {/* Голосовые каналы */}
-          {voiceChannels.length > 0 && (
-            <>
-              <div className={styles.section_title} style={{ marginTop: "16px" }}>
-                <span>Голосовые каналы</span>
-              </div>
-              <div className={styles.chats_list}>
-                {voiceChannels.map((channel) => {
-                  const isActive = activeChat?.id === channel.id;
-                  return (
-                    <div
-                      key={channel.id}
-                      className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
-                      onClick={() => chatClicked(channel)}
-                    >
-                      <div className={styles.chat_avatar} style={{ background: "transparent", fontSize: "18px" }}>
-                        🔊
-                      </div>
-                      <div className={styles.chat_content}>
-                        <span className={styles.chat_name}>{channel.name}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          <div className={styles.section_title} style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>Голосовые каналы</span>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => handleCreateChannel("SERVER_VOICE")}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--primary)",
+                  cursor: "pointer",
+                  fontSize: "15px",
+                  fontWeight: "bold",
+                  padding: "0 4px",
+                }}
+                title="Создать голосовой канал"
+              >
+                +
+              </button>
+            )}
+          </div>
+          <div className={styles.chats_list}>
+            {voiceChannels.map((channel) => {
+              const isActive = activeChat?.id === channel.id;
+              return (
+                <div
+                  key={channel.id}
+                  className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
+                  onClick={() => chatClicked(channel)}
+                >
+                  <div className={styles.chat_avatar} style={{ background: "transparent", fontSize: "18px" }}>
+                    🔊
+                  </div>
+                  <div className={styles.chat_content}>
+                    <span className={styles.chat_name}>{channel.name}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </aside>
     );
