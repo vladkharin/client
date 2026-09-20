@@ -49,7 +49,7 @@ export default function WrapperMessages() {
     setOutgoing,
     setConversationId,
   } = useCallStore();
-  const { user_id } = useUserStore();
+  const { user_id, setProfileModalOpen } = useUserStore();
 
   const isVoiceChannel = activeChat?.type === "SERVER_VOICE";
   const isInThisVoiceChannel = inCall && callConvId === activeChat?.id;
@@ -597,6 +597,22 @@ export default function WrapperMessages() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => setProfileModalOpen(true, "voice")}
+                      style={{
+                        background: "var(--bg-element)",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-primary)",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                      }}
+                      title="Настройки звука и микрофона"
+                    >
+                      ⚙️
+                    </button>
+                    <button
+                      type="button"
                       onClick={leaveMediasoupRoom}
                       style={{
                         background: "rgba(239, 68, 68, 0.15)",
@@ -613,26 +629,45 @@ export default function WrapperMessages() {
                     </button>
                   </>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => joinMediasoupRoom(activeChat.id)}
-                    style={{
-                      background: "var(--primary)",
-                      border: "none",
-                      color: "#ffffff",
-                      borderRadius: "8px",
-                      padding: "8px 16px",
-                      cursor: "pointer",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      boxShadow: "0 0 12px var(--primary-glow)",
-                    }}
-                  >
-                    🟢 Подключиться к каналу
-                  </button>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <button
+                      type="button"
+                      onClick={() => joinMediasoupRoom(activeChat.id)}
+                      style={{
+                        background: "var(--primary)",
+                        border: "none",
+                        color: "#ffffff",
+                        borderRadius: "8px",
+                        padding: "8px 16px",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        boxShadow: "0 0 12px var(--primary-glow)",
+                      }}
+                    >
+                      🟢 Подключиться к каналу
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProfileModalOpen(true, "voice")}
+                      style={{
+                        background: "var(--bg-element)",
+                        border: "1px solid var(--border-color)",
+                        color: "var(--text-primary)",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                      }}
+                      title="Настройки звука и микрофона"
+                    >
+                      ⚙️
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
+
           )}
 
           {/* Строка поиска по чату */}

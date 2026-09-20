@@ -1,7 +1,6 @@
 // src/lib/mediasoupManager.ts
 import * as mediasoup from "mediasoup-client";
-import { useSocketStore } from "@/store";
-import { useCallStore } from "@/store";
+import { useSocketStore, useCallStore, useMediaSettingsStore } from "@/store";
 
 let device: mediasoup.types.Device | null = null;
 let sendTransport: mediasoup.types.Transport | null = null;
@@ -138,13 +137,17 @@ async function produceAudio() {
   audioProduced = true;
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    const { audioInputDeviceId, echoCancellation, noiseSuppression, autoGainControl } =
+      useMediaSettingsStore.getState();
+
+    const audioConstraints: MediaTrackConstraints = {
+      echoCancellation,
+      noiseSuppression,
+      autoGainControl,
+      deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
     useCallStore.getState().setLocalStream(stream);
 
     const track = stream.getAudioTracks()[0];
@@ -163,6 +166,29 @@ async function produceAudio() {
   } catch (e) {
     console.error("💥 produceAudio failed:", e);
     audioProduced = false;
+  }
+}
+
+export async function switchAudioInput(deviceId: string) {
+  if (!audioProducer || !sendTransport) return;
+  try {
+    const { echoCancellation, noiseSuppression, autoGainControl } = useMediaSettingsStore.getState();
+    const audioConstraints: MediaTrackConstraints = {
+      echoCancellation,
+      noiseSuppression,
+      autoGainControl,
+      deviceId: deviceId && deviceId !== "default" ? { exact: deviceId } : undefined,
+    };
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+    const newTrack = stream.getAudioTracks()[0];
+    if (newTrack) {
+      await audioProducer.replaceTrack({ track: newTrack });
+      const oldStream = useCallStore.getState().localStream;
+      oldStream?.getAudioTracks().forEach((t) => t.stop());
+      useCallStore.getState().setLocalStream(stream);
+    }
+  } catch (err) {
+    console.error("Failed to switch audio input device:", err);
   }
 }
 
@@ -192,8 +218,14 @@ export async function toggleCamera(): Promise<boolean> {
   }
 
   try {
+    const { videoInputDeviceId } = useMediaSettingsStore.getState();
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: 24 },
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: 24,
+        deviceId: videoInputDeviceId && videoInputDeviceId !== "default" ? { exact: videoInputDeviceId } : undefined,
+      },
     });
     const track = stream.getVideoTracks()[0];
     if (!track) return false;
@@ -227,6 +259,30 @@ export async function toggleCamera(): Promise<boolean> {
     return false;
   }
 }
+
+export async function switchVideoInput(deviceId: string) {
+  if (!videoProducer || !sendTransport) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: 24,
+        deviceId: deviceId && deviceId !== "default" ? { exact: deviceId } : undefined,
+      },
+    });
+    const newTrack = stream.getVideoTracks()[0];
+    if (newTrack) {
+      await videoProducer.replaceTrack({ track: newTrack });
+      const oldStream = useCallStore.getState().localVideoStream;
+      oldStream?.getVideoTracks().forEach((t) => t.stop());
+      useCallStore.getState().setLocalVideoStream(stream);
+    }
+  } catch (err) {
+    console.error("Failed to switch video input device:", err);
+  }
+}
+
 
 export async function toggleScreenShare(): Promise<boolean> {
   if (!sendTransport) return false;
@@ -316,6 +372,13 @@ export const consumeProducer = async (conversationId: number, producerId: string
       audio.srcObject = stream;
       audio.autoplay = true;
       audio.setAttribute("playsinline", "true");
+
+      const { outputVolume, audioOutputDeviceId } = useMediaSettingsStore.getState();
+      audio.volume = outputVolume / 100;
+      if (audioOutputDeviceId && audioOutputDeviceId !== "default" && typeof (audio as any).setSinkId === "function") {
+        (audio as any).setSinkId(audioOutputDeviceId).catch(() => {});
+      }
+
       document.body.appendChild(audio);
 
       try {
@@ -332,6 +395,7 @@ export const consumeProducer = async (conversationId: number, producerId: string
 
       useCallStore.getState().addRemoteParticipant(peerId, producerId, audio);
     } else if (consumer.kind === "video") {
+
       // Сохраняем видео-поток в стор для красивого React рендеринга в CallOverlay!
       useCallStore.getState().setRemoteVideoStream(peerId, stream);
     }

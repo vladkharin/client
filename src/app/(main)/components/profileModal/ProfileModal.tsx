@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from "react";
 import { useUserStore, useSocketStore } from "@/store";
 import { getMe, updateProfile } from "@/API/routes";
 import { REQUESTS } from "@/commands/commands";
+import VoiceSettingsTab from "./VoiceSettingsTab";
 import styles from "./profileModal.module.css";
 
 const STATUS_EMOJIS = ["🎮", "💻", "🏖️", "☕", "🚀", "🎧", "📚", "🔥", "✨", "💤"];
@@ -15,13 +16,23 @@ export default function ProfileModal() {
     name: storeName,
     surname: storeSurname,
     user_id,
+    profileModalTab,
     setProfileModalOpen,
+    setProfileModalTab,
     setUserProfile,
   } = useUserStore();
 
   const { sendMessage } = useSocketStore();
 
-  const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "security" | "appearance" | "voice">(
+    profileModalTab || "profile",
+  );
+
+  useEffect(() => {
+    if (profileModalTab) {
+      setActiveTab(profileModalTab);
+    }
+  }, [profileModalTab]);
 
   const [username, setUsername] = useState(storeUsername || "");
   const [email, setEmail] = useState(storeEmail || "");
@@ -171,25 +182,45 @@ export default function ProfileModal() {
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === "profile" ? styles.activeTab : ""}`}
-            onClick={() => setActiveTab("profile")}
+            onClick={() => {
+              setActiveTab("profile");
+              setProfileModalTab("profile");
+            }}
           >
             👤 Профиль
           </button>
           <button
             type="button"
+            className={`${styles.tabBtn} ${activeTab === "voice" ? styles.activeTab : ""}`}
+            onClick={() => {
+              setActiveTab("voice");
+              setProfileModalTab("voice");
+            }}
+          >
+            🎙️ Голос и Видео
+          </button>
+          <button
+            type="button"
             className={`${styles.tabBtn} ${activeTab === "security" ? styles.activeTab : ""}`}
-            onClick={() => setActiveTab("security")}
+            onClick={() => {
+              setActiveTab("security");
+              setProfileModalTab("security");
+            }}
           >
             🔒 Безопасность (2FA)
           </button>
           <button
             type="button"
             className={`${styles.tabBtn} ${activeTab === "appearance" ? styles.activeTab : ""}`}
-            onClick={() => setActiveTab("appearance")}
+            onClick={() => {
+              setActiveTab("appearance");
+              setProfileModalTab("appearance");
+            }}
           >
             🎨 Темы
           </button>
         </div>
+
 
         {isFetching ? (
           <div className={styles.loading}>Загрузка данных...</div>
@@ -300,7 +331,10 @@ export default function ProfileModal() {
               </form>
             )}
 
-            {/* ВКЛАДКА 2: БЕЗОПАСНОСТЬ 2FA & СЕССИИ */}
+            {/* ВКЛАДКА 2: ГОЛОС И ВИДЕО */}
+            {activeTab === "voice" && <VoiceSettingsTab />}
+
+            {/* ВКЛАДКА 3: БЕЗОПАСНОСТЬ 2FA & СЕССИИ */}
             {activeTab === "security" && (
               <div className={styles.securitySection}>
                 <div className={styles.cardBox}>

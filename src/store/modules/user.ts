@@ -13,6 +13,7 @@ interface USER_STATE {
   surname: string | null;
   isHydrated: boolean;
   profileModalOpen: boolean;
+  profileModalTab: "profile" | "security" | "appearance" | "voice";
   friendList: FriendListItem[] | null;
   friendListState: boolean;
   friendRequests: {
@@ -32,7 +33,8 @@ interface USER_ACTIONS {
   setToken: (token: string) => void;
   hydrate: () => void;
   logout: () => void;
-  setProfileModalOpen: (open: boolean) => void;
+  setProfileModalOpen: (open: boolean, tab?: "profile" | "security" | "appearance" | "voice") => void;
+  setProfileModalTab: (tab: "profile" | "security" | "appearance" | "voice") => void;
   setUserProfile: (profile: {
     id: number;
     username: string;
@@ -61,6 +63,7 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
         surname: null,
         isHydrated: false,
         profileModalOpen: false,
+        profileModalTab: "profile",
         friendList: null,
         friendRequestsState: false,
         friendRequests: {
@@ -79,7 +82,13 @@ export const useUserStore = create<USER_STATE & USER_ACTIONS>()(
 
         hydrate: () => set({ isHydrated: true }),
 
-        setProfileModalOpen: (open) => set({ profileModalOpen: open }),
+        setProfileModalOpen: (open, tab) =>
+          set({
+            profileModalOpen: open,
+            ...(tab && { profileModalTab: tab }),
+          }),
+
+        setProfileModalTab: (tab) => set({ profileModalTab: tab }),
 
         setUserProfile: (profile) =>
           set({

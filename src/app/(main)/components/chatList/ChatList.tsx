@@ -48,9 +48,10 @@ export default function ChatList() {
     isChatsLoading,
     setIsMessagesLoading,
   } = useChatStore();
-  const { user_id } = useUserStore();
+  const { user_id, setProfileModalOpen } = useUserStore();
   const { sendMessage } = useSocketStore();
   const {
+
     inCall,
     conversationId: callConvId,
     isMicMuted,
@@ -204,9 +205,18 @@ export default function ChatList() {
         >
           {isScreenActive ? "💻" : "🖥️"}
         </button>
+        <button
+          type="button"
+          className={styles.voiceActionBtn}
+          onClick={() => setProfileModalOpen(true, "voice")}
+          title="Настройки звука и видео"
+        >
+          ⚙️
+        </button>
       </div>
     </div>
   ) : null;
+
 
   // ЕСЛИ ВЫБРАН СЕРВЕР: Показываем каналы сервера
   if (activeServer) {
