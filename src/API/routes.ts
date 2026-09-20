@@ -81,6 +81,24 @@ export async function updateProfile(data: { username?: string; email?: string; n
   return await f("PATCH", JSON.stringify(data), "/user/profile");
 }
 
+// --- Подтверждение и смена Email ---
+
+export async function verifyEmail(email: string, code: string) {
+  return await f("POST", JSON.stringify({ email, code }), "/user/verify-email");
+}
+
+export async function resendVerification(email: string) {
+  return await f("POST", JSON.stringify({ email }), "/user/resend-verification");
+}
+
+export async function requestEmailChange(newEmail: string) {
+  return await f("POST", JSON.stringify({ newEmail }), "/user/request-email-change");
+}
+
+export async function verifyEmailChange(code: string) {
+  return await f("POST", JSON.stringify({ code }), "/user/verify-email-change");
+}
+
 // --- Push-уведомления ---
 
 export async function registerPushToken(token: string, platform: string = "web") {

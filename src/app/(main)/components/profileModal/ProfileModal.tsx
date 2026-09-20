@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useUserStore, useSocketStore } from "@/store";
-import { getMe, updateProfile } from "@/API/routes";
+import { getMe, updateProfile, verifyEmail, resendVerification, requestEmailChange, verifyEmailChange } from "@/API/routes";
 import { REQUESTS } from "@/commands/commands";
 import { QRCodeSVG } from "qrcode.react";
 import VoiceSettingsTab from "./VoiceSettingsTab";
@@ -66,6 +66,15 @@ export default function ProfileModal() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
+  const [verifyCode, setVerifyCode] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [changeEmailStep, setChangeEmailStep] = useState<"input" | "verify">("input");
+  const [changeEmailCode, setChangeEmailCode] = useState("");
+  const [isEmailActionLoading, setIsEmailActionLoading] = useState(false);
+
   useEffect(() => {
     async function loadUserData() {
       try {
@@ -80,6 +89,7 @@ export default function ProfileModal() {
           setCustomStatus(data.customStatus || "");
           setStatusEmoji(data.statusEmoji || "✨");
           setTwoFactorEnabled(!!data.twoFactorEnabled);
+          setIsEmailVerified(!!data.isEmailVerified);
           setUserProfile(data);
         }
       } catch (e: any) {
@@ -91,6 +101,79 @@ export default function ProfileModal() {
 
     loadUserData();
   }, [setUserProfile]);
+
+  const handleSendVerificationCode = async () => {
+    try {
+      setIsEmailActionLoading(true);
+      await resendVerification(email);
+      setShowVerifyModal(true);
+      toast.info(`Код подтверждения отправлен на ${email}`);
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка отправки кода");
+    } finally {
+      setIsEmailActionLoading(false);
+    }
+  };
+
+  const handleConfirmVerifyEmail = async () => {
+    if (!verifyCode.trim() || verifyCode.trim().length !== 6) {
+      toast.warn("Введите 6-значный код подтверждения");
+      return;
+    }
+    try {
+      setIsEmailActionLoading(true);
+      await verifyEmail(email, verifyCode.trim());
+      setIsEmailVerified(true);
+      setShowVerifyModal(false);
+      setVerifyCode("");
+      toast.success("Email успешно подтвержден!");
+    } catch (e: any) {
+      toast.error(e.message || "Неверный или просроченный код");
+    } finally {
+      setIsEmailActionLoading(false);
+    }
+  };
+
+  const handleRequestChangeEmail = async () => {
+    if (!newEmail.trim() || !newEmail.includes("@")) {
+      toast.warn("Введите корректный новый Email адрес");
+      return;
+    }
+    try {
+      setIsEmailActionLoading(true);
+      await requestEmailChange(newEmail.trim());
+      setChangeEmailStep("verify");
+      toast.info(`Код подтверждения отправлен на ${newEmail.trim()}`);
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка запроса смены Email");
+    } finally {
+      setIsEmailActionLoading(false);
+    }
+  };
+
+  const handleConfirmEmailChange = async () => {
+    if (!changeEmailCode.trim() || changeEmailCode.trim().length !== 6) {
+      toast.warn("Введите 6-значный код");
+      return;
+    }
+    try {
+      setIsEmailActionLoading(true);
+      const res = await verifyEmailChange(changeEmailCode.trim());
+      if (res?.user?.email) {
+        setEmail(res.user.email);
+        setIsEmailVerified(true);
+      }
+      setShowChangeEmailModal(false);
+      setChangeEmailStep("input");
+      setNewEmail("");
+      setChangeEmailCode("");
+      toast.success("Email успешно изменен и подтвержден!");
+    } catch (e: any) {
+      toast.error(e.message || "Неверный или просроченный код");
+    } finally {
+      setIsEmailActionLoading(false);
+    }
+  };
 
   const closeModal = () => {
     setProfileModalOpen(false);
@@ -366,15 +449,69 @@ export default function ProfileModal() {
                 </div>
 
                 <div className={styles.inputGroup}>
-                  <label className={styles.label}>Электронная почта</label>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <label className={styles.label} style={{ margin: 0 }}>Электронная почта</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {isEmailVerified ? (
+                        <span style={{ fontSize: "12px", color: "#22c55e", fontWeight: 600, background: "rgba(34, 197, 94, 0.15)", padding: "2px 8px", borderRadius: "12px" }}>
+                          ✅ Подтверждена
+                        </span>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ fontSize: "12px", color: "#f59e0b", fontWeight: 600, background: "rgba(245, 158, 11, 0.15)", padding: "2px 8px", borderRadius: "12px" }}>
+                            ⚠️ Не подтверждена
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleSendVerificationCode}
+                            disabled={isEmailActionLoading}
+                            style={{
+                              background: "#6366f1",
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "6px",
+                              padding: "2px 8px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Подтвердить
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowChangeEmailModal(true);
+                          setChangeEmailStep("input");
+                        }}
+                        style={{
+                          background: "transparent",
+                          color: "#818cf8",
+                          border: "1px solid rgba(129, 140, 248, 0.4)",
+                          borderRadius: "6px",
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Сменить
+                      </button>
+                    </div>
+                  </div>
                   <input
                     className={styles.input}
                     type="email"
                     placeholder="example@domain.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
+                    readOnly
+                    style={{ opacity: 0.85, cursor: "not-allowed" }}
                   />
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                    Для изменения адреса почты воспользуйтесь кнопкой «Сменить»
+                  </span>
                 </div>
 
                 <div className={styles.row}>
@@ -658,6 +795,176 @@ export default function ProfileModal() {
               </div>
             )}
           </>
+        )}
+
+        {/* МОДАЛКА: ПОДТВЕРЖДЕНИЕ ТЕКУЩЕЙ ПОЧТЫ */}
+        {showVerifyModal && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0,0,0,0.8)",
+              zIndex: 1100,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+            }}
+            onClick={() => setShowVerifyModal(false)}
+          >
+            <div
+              style={{
+                background: "var(--bg-card)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "16px",
+                padding: "24px",
+                maxWidth: "380px",
+                width: "100%",
+                boxShadow: "0 20px 40px rgba(0,0,0,0.7)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "18px" }}>Подтверждение Email</h3>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "0 0 16px 0" }}>
+                Введите 6-значный код, отправленный на <strong style={{ color: "var(--primary)" }}>{email}</strong>
+              </p>
+              <input
+                className={styles.input}
+                type="text"
+                maxLength={6}
+                placeholder="123456"
+                value={verifyCode}
+                onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
+                style={{ fontSize: "20px", textAlign: "center", letterSpacing: "4px", marginBottom: "16px" }}
+              />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={() => setShowVerifyModal(false)}
+                  style={{ flex: 1 }}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className={styles.saveBtn}
+                  onClick={handleConfirmVerifyEmail}
+                  disabled={isEmailActionLoading || verifyCode.length !== 6}
+                  style={{ flex: 1 }}
+                >
+                  {isEmailActionLoading ? "Проверка..." : "Подтвердить"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* МОДАЛКА: СМЕНА EMAIL */}
+        {showChangeEmailModal && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0,0,0,0.8)",
+              zIndex: 1100,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+            }}
+            onClick={() => setShowChangeEmailModal(false)}
+          >
+            <div
+              style={{
+                background: "var(--bg-card)",
+                border: "1px solid var(--border-color)",
+                borderRadius: "16px",
+                padding: "24px",
+                maxWidth: "400px",
+                width: "100%",
+                boxShadow: "0 20px 40px rgba(0,0,0,0.7)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "18px" }}>Смена электронной почты</h3>
+
+              {changeEmailStep === "input" ? (
+                <>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "0 0 16px 0" }}>
+                    Укажите новый адрес электронной почты. Мы отправим на него проверочный код.
+                  </p>
+                  <input
+                    className={styles.input}
+                    type="email"
+                    placeholder="new-email@example.com"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    style={{ marginBottom: "16px" }}
+                  />
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      className={styles.cancelBtn}
+                      onClick={() => setShowChangeEmailModal(false)}
+                      style={{ flex: 1 }}
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.saveBtn}
+                      onClick={handleRequestChangeEmail}
+                      disabled={isEmailActionLoading || !newEmail}
+                      style={{ flex: 1 }}
+                    >
+                      {isEmailActionLoading ? "Отправка..." : "Далее"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", margin: "0 0 16px 0" }}>
+                    Введите 6-значный код, отправленный на <strong style={{ color: "var(--primary)" }}>{newEmail}</strong>
+                  </p>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    maxLength={6}
+                    placeholder="123456"
+                    value={changeEmailCode}
+                    onChange={(e) => setChangeEmailCode(e.target.value.replace(/\D/g, ""))}
+                    style={{ fontSize: "20px", textAlign: "center", letterSpacing: "4px", marginBottom: "16px" }}
+                  />
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      className={styles.cancelBtn}
+                      onClick={() => setChangeEmailStep("input")}
+                      style={{ flex: 1 }}
+                    >
+                      Назад
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.saveBtn}
+                      onClick={handleConfirmEmailChange}
+                      disabled={isEmailActionLoading || changeEmailCode.length !== 6}
+                      style={{ flex: 1 }}
+                    >
+                      {isEmailActionLoading ? "Смена..." : "Подтвердить"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

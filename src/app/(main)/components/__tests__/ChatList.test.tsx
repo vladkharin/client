@@ -65,7 +65,7 @@ describe("ChatList", () => {
     render(<ChatList />);
     expect(screen.getByText("@alice")).toBeInTheDocument();
     expect(screen.getByText("Frontend Wizards")).toBeInTheDocument();
-    expect(screen.getByText("4 участника")).toBeInTheDocument();
+    expect(screen.getByText(/4\s+участник/)).toBeInTheDocument();
   });
 
   it("should set active chat on item click", async () => {
