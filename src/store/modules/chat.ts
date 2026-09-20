@@ -119,7 +119,7 @@ export const useChatStore = create<CHAT_STATE>()(
       isMessagesLoading: false,
       createGroupModalOpen: false,
       createServerModalOpen: false,
-      isMemberListOpen: true,
+      isMemberListOpen: typeof window !== "undefined" ? window.innerWidth > 1024 : true,
       typingUsers: {},
       onlineUserIds: [],
 
@@ -219,14 +219,26 @@ export const useChatStore = create<CHAT_STATE>()(
           return { chats: enhancedChats, isChatsLoading: false };
         }),
       setActiveChat: (chat: CHAT | null) =>
-        set((state) => ({
-          activeChat: chat,
-          firstUnreadId: null,
-          messages: state.activeChat?.id === chat?.id ? state.messages : [],
-        })),
+        set((state) => {
+          const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+          return {
+            activeChat: chat,
+            firstUnreadId: null,
+            messages: state.activeChat?.id === chat?.id ? state.messages : [],
+            ...(isMobile && { isMemberListOpen: false }),
+          };
+        }),
       setServers: (servers: ServerItem[]) => set({ servers }),
       addServer: (server: ServerItem) => set((state) => ({ servers: [...state.servers, server] })),
-      setActiveServer: (server: ServerItem | null) => set({ activeServer: server }),
+      setActiveServer: (server: ServerItem | null) =>
+        set(() => {
+          const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+          return {
+            activeServer: server,
+            activeChat: null,
+            ...(isMobile && { isMemberListOpen: false }),
+          };
+        }),
       updateServerChannel: (serverId: number, updatedChannel: CHAT) =>
         set((state) => {
           const newServers = state.servers.map((srv) => {

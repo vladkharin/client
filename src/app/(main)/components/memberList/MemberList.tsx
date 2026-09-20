@@ -43,7 +43,7 @@ function getInitials(name?: string) {
 }
 
 export default function MemberList() {
-  const { activeServer, activeChat, isMemberListOpen, findOrCreateDirectChat, setActiveChat, onlineUserIds } = useChatStore();
+  const { activeServer, activeChat, isMemberListOpen, toggleMemberList, onlineUserIds } = useChatStore();
   const { sendMessage } = useSocketStore();
   const { user_id } = useUserStore();
   const { setOutgoing, setConversationId } = useCallStore();
@@ -105,8 +105,23 @@ export default function MemberList() {
   const regularMembers = members.filter((m) => m.role === "MEMBER" || !m.role);
 
   return (
-    <aside className={styles.container}>
-      <div className={styles.scrollArea}>
+    <>
+      <div className={styles.mobileBackdrop} onClick={toggleMemberList} />
+
+      <aside className={styles.container}>
+        <div className={styles.mobileHeader}>
+          <span className={styles.mobileHeaderTitle}>👥 Участники ({members.length})</span>
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={toggleMemberList}
+            title="Закрыть список участников"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className={styles.scrollArea}>
         {isLoading ? (
           <div className={styles.loading}>
             <div className={styles.spinner} />
@@ -196,6 +211,7 @@ export default function MemberList() {
         onClose={() => setSelectedMember(null)}
       />
     </aside>
+    </>
   );
 }
 
