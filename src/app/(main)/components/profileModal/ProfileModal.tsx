@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useUserStore, useSocketStore } from "@/store";
-import { getMe, updateProfile, verifyEmail, resendVerification, requestEmailChange, verifyEmailChange } from "@/API/routes";
+import { getMe, updateProfile, verifyEmail, resendVerification, verifyEmailMe, resendVerificationMe, requestEmailChange, verifyEmailChange } from "@/API/routes";
 import { REQUESTS } from "@/commands/commands";
 import { QRCodeSVG } from "qrcode.react";
 import VoiceSettingsTab from "./VoiceSettingsTab";
@@ -105,7 +105,11 @@ export default function ProfileModal() {
   const handleSendVerificationCode = async () => {
     try {
       setIsEmailActionLoading(true);
-      await resendVerification(email);
+      try {
+        await resendVerificationMe();
+      } catch {
+        await resendVerification(email);
+      }
       setShowVerifyModal(true);
       toast.info(`Код подтверждения отправлен на ${email}`);
     } catch (e: any) {
@@ -122,7 +126,11 @@ export default function ProfileModal() {
     }
     try {
       setIsEmailActionLoading(true);
-      await verifyEmail(email, verifyCode.trim());
+      try {
+        await verifyEmailMe(verifyCode.trim());
+      } catch {
+        await verifyEmail(email, verifyCode.trim());
+      }
       setIsEmailVerified(true);
       setShowVerifyModal(false);
       setVerifyCode("");

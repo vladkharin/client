@@ -87,8 +87,16 @@ export async function verifyEmail(email: string, code: string) {
   return await f("POST", JSON.stringify({ email, code }), "/user/verify-email");
 }
 
-export async function resendVerification(email: string) {
+export async function resendVerification(email?: string) {
   return await f("POST", JSON.stringify({ email }), "/user/resend-verification");
+}
+
+export async function verifyEmailMe(code: string) {
+  return await f("POST", JSON.stringify({ code }), "/user/verify-email-me");
+}
+
+export async function resendVerificationMe() {
+  return await f("POST", null, "/user/resend-verification-me");
 }
 
 export async function requestEmailChange(newEmail: string) {
