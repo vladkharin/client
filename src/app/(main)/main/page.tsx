@@ -16,10 +16,11 @@ import CreateGroupModal from "../components/createGroupModal/CreateGroupModal";
 import CreateServerModal from "../components/createServerModal/CreateServerModal";
 import ProfileModal from "../components/profileModal/ProfileModal";
 import ServerBar from "../components/serverBar/ServerBar";
+import CallOverlay from "../components/callOverlay/callOverlay";
 
 export default function Page() {
   const { inComingCall, createGroupModalOpen, createServerModalOpen, activeChat } = useChatStore();
-  const { isOutgoing } = useCallStore();
+  const { isOutgoing, inCall } = useCallStore();
   const { state } = useFinderStore();
   const { friendRequestsState, friendListState, profileModalOpen } = useUserStore();
 
@@ -41,6 +42,9 @@ export default function Page() {
             <WrapperMessages />
           </div>
         </div>
+
+        {/* Оверлей активного звонка и видеосетки */}
+        {inCall && <CallOverlay />}
 
         {inComingCall && <CallModal />}
         {isOutgoing && <OutgoingCallModal />}

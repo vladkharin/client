@@ -1,79 +1,149 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useEffect } from "react";
 import styles from "./callOverlay.module.css";
 import { useCallStore } from "@/store";
-import { leaveMediasoupRoom, toggleCamera, toggleScreenShare } from "@/lib/mediasoupManager";
+import {
+  leaveMediasoupRoom,
+  toggleCamera,
+  toggleScreenShare,
+  toggleMuteMic,
+} from "@/lib/mediasoupManager";
+
+// Компонент для удаленного видео
+function RemoteVideo({ stream, peerId }: { stream: MediaStream; peerId: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <span className={styles.peer_badge}>Собеседник #{peerId}</span>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        className={styles.remote_video}
+      />
+    </div>
+  );
+}
+
+// Компонент для своего видео (PiP)
+function LocalVideo({ stream }: { stream: MediaStream }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <div className={styles.local_pip}>
+      <span className={styles.pip_badge}>Вы</span>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className={styles.local_video}
+      />
+    </div>
+  );
+}
 
 export default function CallOverlay() {
-  const { inCall, remoteParticipants } = useCallStore();
-  const [isCameraOn, setIsCameraOn] = useState(false);
-  const [isScreenOn, setIsScreenOn] = useState(false);
+  const {
+    inCall,
+    remoteParticipants,
+    remoteVideoStreams,
+    localVideoStream,
+    isCameraActive,
+    isScreenActive,
+    isMicMuted,
+  } = useCallStore();
 
   if (!inCall) return null;
 
-  const handleLeave = () => {
-    leaveMediasoupRoom();
-  };
-
-  const handleToggleCamera = async () => {
-    const active = await toggleCamera();
-    setIsCameraOn(active);
-  };
-
-  const handleToggleScreen = async () => {
-    const active = await toggleScreenShare();
-    setIsScreenOn(active);
-  };
-
   const totalCallMembers = new Set(remoteParticipants.map((p) => p.peerId)).size + 1;
+  const remoteVideoEntries = Object.entries(remoteVideoStreams);
+  const hasActiveVideo = remoteVideoEntries.length > 0 || !!localVideoStream;
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.info}>
-        <div className={styles.pulse_icon} />
-        <span className={styles.status}>В звонке ({totalCallMembers} чел.)</span>
-      </div>
+    <aside className={styles.overlay} aria-label="Панель звонка">
+      {/* ЕСЛИ ЕСТЬ ВИДЕО: Показываем аккуратную сетку видеозвонка */}
+      {hasActiveVideo && (
+        <div className={styles.video_grid_wrapper}>
+          <div className={styles.video_grid}>
+            {remoteVideoEntries.length > 0 ? (
+              remoteVideoEntries.map(([peerId, stream]) => (
+                <RemoteVideo key={peerId} peerId={peerId} stream={stream} />
+              ))
+            ) : (
+              <div className={styles.no_video_placeholder}>
+                <div className={styles.avatar_circle}>👤</div>
+                <span>Собеседник без камеры</span>
+              </div>
+            )}
 
-      <div className={styles.controls}>
+            {/* Свое видео в углу (PiP) */}
+            {localVideoStream && <LocalVideo stream={localVideoStream} />}
+          </div>
+        </div>
+      )}
+
+      {/* ПЛАВАЮЩАЯ ПАНЕЛЬ УПРАВЛЕНИЯ ЗВОНКОМ */}
+      <div className={styles.controls_pill}>
+        <div className={styles.call_info}>
+          <div className={styles.pulse_icon} />
+          <span className={styles.status_text}>{totalCallMembers} в звонке</span>
+        </div>
+
+        {/* Микрофон */}
         <button
           type="button"
-          className={styles.action_btn}
-          style={{
-            background: isCameraOn ? "var(--primary)" : "rgba(255, 255, 255, 0.15)",
-            border: "none",
-            color: "#fff",
-            padding: "6px 10px",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-          onClick={handleToggleCamera}
+          className={`${styles.control_btn} ${isMicMuted ? styles.control_btn_muted : ""}`}
+          onClick={toggleMuteMic}
+          title={isMicMuted ? "Включить микрофон" : "Выключить микрофон"}
+        >
+          {isMicMuted ? "🔇 Выкл" : "🎙️ Микр"}
+        </button>
+
+        {/* Камера */}
+        <button
+          type="button"
+          className={`${styles.control_btn} ${isCameraActive ? styles.control_btn_active : ""}`}
+          onClick={toggleCamera}
           title="Камера"
         >
-          {isCameraOn ? "📹 Вкл" : "📷 Камера"}
+          {isCameraActive ? "📹 Вкл" : "📷 Камера"}
         </button>
 
+        {/* Демонстрация экрана */}
         <button
           type="button"
-          className={styles.action_btn}
-          style={{
-            background: isScreenOn ? "var(--primary)" : "rgba(255, 255, 255, 0.15)",
-            border: "none",
-            color: "#fff",
-            padding: "6px 10px",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-          onClick={handleToggleScreen}
+          className={`${styles.control_btn} ${isScreenActive ? styles.control_btn_active : ""}`}
+          onClick={toggleScreenShare}
           title="Демонстрация экрана"
         >
-          {isScreenOn ? "🖥️ Вкл" : "💻 Экран"}
+          {isScreenActive ? "🖥️ Вкл" : "💻 Экран"}
         </button>
 
-        <button className={styles.leave_btn} onClick={handleLeave}>
-          Покинуть звонок
+        {/* Завершить звонок */}
+        <button
+          type="button"
+          className={styles.leave_btn}
+          onClick={leaveMediasoupRoom}
+          title="Покинуть звонок"
+        >
+          Завершить
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

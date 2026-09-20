@@ -7,6 +7,7 @@ let device: mediasoup.types.Device | null = null;
 let sendTransport: mediasoup.types.Transport | null = null;
 let recvTransport: mediasoup.types.Transport | null = null;
 let audioProduced = false;
+let audioProducer: mediasoup.types.Producer | null = null;
 let videoProducer: mediasoup.types.Producer | null = null;
 const pendingProducers: Array<{ conversationId: number; producerId: string; peerId: string }> = [];
 const consumedProducerIds = new Set<string>();
@@ -15,8 +16,11 @@ export const joinMediasoupRoom = async (conversationId: number) => {
   console.log("📞 joinMediasoupRoom вызван для conversationId:", conversationId);
 
   audioProduced = false;
+  audioProducer = null;
+  videoProducer = null;
   consumedProducerIds.clear();
   pendingProducers.length = 0;
+
   try {
     sendTransport?.close();
     recvTransport?.close();
@@ -31,7 +35,6 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     const routerRtpCapabilities = await sendMessage("mediasoup:getRouterRtpCapabilities", { conversationId });
     device = new mediasoup.Device();
     await device.load({ routerRtpCapabilities });
-    console.log("✅ Device loaded");
 
     // 1. Создаем Send Transport
     const sendTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", {
@@ -40,7 +43,6 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     });
     sendTransport = device.createSendTransport(sendTransportInfo);
     setupSendTransport(sendTransport, conversationId);
-    console.log("📤 Send transport создан");
 
     // 2. Создаем Recv Transport
     const recvTransportInfo = await sendMessage("mediasoup:createWebRtcTransport", {
@@ -49,14 +51,13 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     });
     recvTransport = device.createRecvTransport(recvTransportInfo);
     setupRecvTransport(recvTransport, conversationId);
-    console.log("📥 Recv transport создан");
 
     useCallStore.setState({ conversationId, inCall: true, error: null });
 
-    // 3. Запускаем публикацию своего микрофона
+    // 3. Запускаем микрофон
     produceAudio().catch(console.error);
 
-    // 4. Обрабатываем продюсеры из очереди
+    // 4. Обрабатываем очередь продюсеров
     while (pendingProducers.length > 0) {
       const p = pendingProducers.shift();
       if (p) {
@@ -70,7 +71,6 @@ export const joinMediasoupRoom = async (conversationId: number) => {
       if (Array.isArray(existingProducers)) {
         for (const prod of existingProducers) {
           if (prod.producerId && !consumedProducerIds.has(prod.producerId)) {
-            console.log("🔗 Подключаемся к существующему продюсеру в комнате:", prod);
             consumeProducer(conversationId, prod.producerId, String(prod.userId)).catch(console.error);
           }
         }
@@ -87,7 +87,6 @@ export const joinMediasoupRoom = async (conversationId: number) => {
 
 function setupSendTransport(transport: mediasoup.types.Transport, conversationId: number) {
   transport.on("connect", ({ dtlsParameters }, callback, errback) => {
-    console.log("📡 sendTransport.connect вызван");
     useSocketStore
       .getState()
       .sendMessage("mediasoup:connectTransport", {
@@ -95,18 +94,11 @@ function setupSendTransport(transport: mediasoup.types.Transport, conversationId
         transportId: transport.id,
         dtlsParameters,
       })
-      .then((response) => {
-        console.log("✅ Ответ от сервера на connect sendTransport:", response);
-        callback();
-      })
-      .catch((err) => {
-        console.error("❌ Ошибка в connectTransport (send):", err);
-        errback(err);
-      });
+      .then(() => callback())
+      .catch(errback);
   });
 
   transport.on("produce", ({ kind, rtpParameters }, callback, errback) => {
-    console.log("📤 sendTransport.produce вызван для kind:", kind);
     useSocketStore
       .getState()
       .sendMessage("mediasoup:produce", {
@@ -116,7 +108,6 @@ function setupSendTransport(transport: mediasoup.types.Transport, conversationId
         rtpParameters,
       })
       .then((data) => {
-        console.log("✅ Сервер подтвердил Produce:", data);
         if (data && data.id) {
           callback({ id: data.id });
         } else {
@@ -125,15 +116,10 @@ function setupSendTransport(transport: mediasoup.types.Transport, conversationId
       })
       .catch(errback);
   });
-
-  transport.on("connectionstatechange", (state) => {
-    console.log("📡 sendTransport state:", state);
-  });
 }
 
 function setupRecvTransport(transport: mediasoup.types.Transport, conversationId: number) {
   transport.on("connect", ({ dtlsParameters }, callback, errback) => {
-    console.log("📡 recvTransport.connect вызван");
     useSocketStore
       .getState()
       .sendMessage("mediasoup:connectTransport", {
@@ -141,28 +127,17 @@ function setupRecvTransport(transport: mediasoup.types.Transport, conversationId
         transportId: transport.id,
         dtlsParameters,
       })
-      .then(() => {
-        console.log("✅ recvTransport подключён");
-        callback();
-      })
+      .then(() => callback())
       .catch(errback);
-  });
-
-  transport.on("connectionstatechange", (state) => {
-    console.log("📡 recvTransport state:", state);
   });
 }
 
 async function produceAudio() {
   if (audioProduced || !sendTransport) return;
-  if (device && !device.canProduce("audio")) {
-    console.warn("Device cannot produce audio");
-    return;
-  }
+  if (device && !device.canProduce("audio")) return;
   audioProduced = true;
 
   try {
-    console.log("🎤 Запрашиваем доступ к микрофону...");
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -178,15 +153,30 @@ async function produceAudio() {
     }
 
     const producer = await sendTransport.produce({ track });
+    audioProducer = producer;
     useCallStore.getState().addProducer({ id: producer.id, kind: "audio", track });
 
     producer.on("transportclose", () => {
       useCallStore.getState().removeProducer(producer.id);
+      audioProducer = null;
     });
   } catch (e) {
     console.error("💥 produceAudio failed:", e);
     audioProduced = false;
   }
+}
+
+export function toggleMuteMic(): boolean {
+  const { localStream, isMicMuted, setIsMicMuted } = useCallStore.getState();
+  if (!localStream) return isMicMuted;
+
+  const audioTrack = localStream.getAudioTracks()[0];
+  if (audioTrack) {
+    audioTrack.enabled = isMicMuted; // если был muted (true), включаем (enabled = true)
+    setIsMicMuted(!isMicMuted);
+    return !isMicMuted;
+  }
+  return isMicMuted;
 }
 
 export async function toggleCamera(): Promise<boolean> {
@@ -195,24 +185,41 @@ export async function toggleCamera(): Promise<boolean> {
   if (videoProducer) {
     videoProducer.close();
     useCallStore.getState().removeProducer(videoProducer.id);
+    useCallStore.getState().setLocalVideoStream(null);
+    useCallStore.getState().setIsCameraActive(false);
     videoProducer = null;
     return false;
   }
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 640, height: 480, frameRate: 24 },
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: 24 },
     });
     const track = stream.getVideoTracks()[0];
     if (!track) return false;
 
     videoProducer = await sendTransport.produce({ track });
     useCallStore.getState().addProducer({ id: videoProducer.id, kind: "video", track });
+    useCallStore.getState().setLocalVideoStream(stream);
+    useCallStore.getState().setIsCameraActive(true);
+    useCallStore.getState().setIsScreenActive(false);
 
     videoProducer.on("transportclose", () => {
       if (videoProducer) useCallStore.getState().removeProducer(videoProducer.id);
+      useCallStore.getState().setLocalVideoStream(null);
+      useCallStore.getState().setIsCameraActive(false);
       videoProducer = null;
     });
+
+    track.onended = () => {
+      if (videoProducer) {
+        videoProducer.close();
+        useCallStore.getState().removeProducer(videoProducer.id);
+        useCallStore.getState().setLocalVideoStream(null);
+        useCallStore.getState().setIsCameraActive(false);
+        videoProducer = null;
+      }
+    };
 
     return true;
   } catch (err) {
@@ -227,6 +234,8 @@ export async function toggleScreenShare(): Promise<boolean> {
   if (videoProducer) {
     videoProducer.close();
     useCallStore.getState().removeProducer(videoProducer.id);
+    useCallStore.getState().setLocalVideoStream(null);
+    useCallStore.getState().setIsScreenActive(false);
     videoProducer = null;
     return false;
   }
@@ -240,9 +249,14 @@ export async function toggleScreenShare(): Promise<boolean> {
 
     videoProducer = await sendTransport.produce({ track });
     useCallStore.getState().addProducer({ id: videoProducer.id, kind: "video", track });
+    useCallStore.getState().setLocalVideoStream(stream);
+    useCallStore.getState().setIsScreenActive(true);
+    useCallStore.getState().setIsCameraActive(false);
 
     videoProducer.on("transportclose", () => {
       if (videoProducer) useCallStore.getState().removeProducer(videoProducer.id);
+      useCallStore.getState().setLocalVideoStream(null);
+      useCallStore.getState().setIsScreenActive(false);
       videoProducer = null;
     });
 
@@ -250,6 +264,8 @@ export async function toggleScreenShare(): Promise<boolean> {
       if (videoProducer) {
         videoProducer.close();
         useCallStore.getState().removeProducer(videoProducer.id);
+        useCallStore.getState().setLocalVideoStream(null);
+        useCallStore.getState().setIsScreenActive(false);
         videoProducer = null;
       }
     };
@@ -262,13 +278,9 @@ export async function toggleScreenShare(): Promise<boolean> {
 }
 
 export const consumeProducer = async (conversationId: number, producerId: string, peerId: string) => {
-  if (consumedProducerIds.has(producerId)) {
-    console.log(`ℹ️ Producer ${producerId} уже подключен`);
-    return;
-  }
+  if (consumedProducerIds.has(producerId)) return;
 
   if (!device || !recvTransport) {
-    console.log(`⏳ recvTransport еще не готов, сохраняем producer ${producerId} в очередь`);
     pendingProducers.push({ conversationId, producerId, peerId });
     return;
   }
@@ -320,15 +332,8 @@ export const consumeProducer = async (conversationId: number, producerId: string
 
       useCallStore.getState().addRemoteParticipant(peerId, producerId, audio);
     } else if (consumer.kind === "video") {
-      const oldVideo = document.getElementById(`remote-video-${peerId}`) as HTMLVideoElement;
-      if (oldVideo) oldVideo.remove();
-
-      const video = document.createElement("video");
-      video.id = `remote-video-${peerId}`;
-      video.srcObject = stream;
-      video.autoplay = true;
-      video.setAttribute("playsinline", "true");
-      document.body.appendChild(video);
+      // Сохраняем видео-поток в стор для красивого React рендеринга в CallOverlay!
+      useCallStore.getState().setRemoteVideoStream(peerId, stream);
     }
   } catch (error) {
     console.error("❌ [Consume FATAL]:", error);
@@ -338,6 +343,7 @@ export const consumeProducer = async (conversationId: number, producerId: string
 
 export const leaveMediasoupRoom = () => {
   audioProduced = false;
+  audioProducer = null;
   consumedProducerIds.clear();
   pendingProducers.length = 0;
   if (videoProducer) {
@@ -346,7 +352,6 @@ export const leaveMediasoupRoom = () => {
   }
 
   document.querySelectorAll('audio[id^="remote-audio-"]').forEach((el) => el.remove());
-  document.querySelectorAll('video[id^="remote-video-"]').forEach((el) => el.remove());
 
   sendTransport?.close();
   recvTransport?.close();

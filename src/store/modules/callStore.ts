@@ -17,17 +17,22 @@ interface LocalProducer {
 interface CallState {
   // Состояние комнаты
   inCall: boolean;
-  isOutgoing: boolean; // Статус исходящего вызова (ожидание ответа)
+  isOutgoing: boolean;
   conversationId: number | null;
   error: string | null;
 
   // Локальные ресурсы
   localStream: MediaStream | null;
+  localVideoStream: MediaStream | null;
+  isCameraActive: boolean;
+  isScreenActive: boolean;
+  isMicMuted: boolean;
   producers: LocalProducer[];
 
   // Удалённые участники
   remoteParticipants: RemoteParticipant[];
-  consumers: Record<string, mediasoup.types.Consumer>; // producerId → Consumer
+  remoteVideoStreams: Record<string, MediaStream>; // peerId -> MediaStream
+  consumers: Record<string, mediasoup.types.Consumer>;
 
   // Методы
   setOutgoing: (isOutgoing: boolean) => void;
@@ -36,9 +41,15 @@ interface CallState {
 
   addRemoteParticipant: (peerId: string, producerId: string, audio: HTMLAudioElement) => void;
   removeRemoteParticipant: (producerId: string) => void;
+  setRemoteVideoStream: (peerId: string, stream: MediaStream | null) => void;
+
   addProducer: (producer: LocalProducer) => void;
   removeProducer: (producerId: string) => void;
   setLocalStream: (stream: MediaStream | null) => void;
+  setLocalVideoStream: (stream: MediaStream | null) => void;
+  setIsCameraActive: (active: boolean) => void;
+  setIsScreenActive: (active: boolean) => void;
+  setIsMicMuted: (muted: boolean) => void;
   setError: (error: string | null) => void;
 
   reset: () => void;
@@ -53,23 +64,25 @@ export const useCallStore = create<CallState>()(
       error: null,
 
       localStream: null,
+      localVideoStream: null,
+      isCameraActive: false,
+      isScreenActive: false,
+      isMicMuted: false,
       producers: [],
       remoteParticipants: [],
+      remoteVideoStreams: {},
       consumers: {},
 
-      // Управление статусами
       setOutgoing: (isOutgoing) => set({ isOutgoing }),
 
       setConversationId: (id) =>
         set({
           conversationId: id,
-          // Если мы устанавливаем ID, но это не исходящий вызов, значит мы уже в процессе
           inCall: id !== null && !get().isOutgoing,
         }),
 
       setInCall: (inCall) => set({ inCall }),
 
-      // Управление участниками
       addRemoteParticipant: (peerId, producerId, audio) =>
         set((state) => {
           const old = state.remoteParticipants.find((p) => p.peerId === peerId || p.producerId === producerId);
@@ -103,15 +116,33 @@ export const useCallStore = create<CallState>()(
             delete newConsumers[participant.producerId];
           }
 
+          const newVideos = { ...state.remoteVideoStreams };
+          delete newVideos[id];
+          if (participant?.peerId) {
+            delete newVideos[participant.peerId];
+          }
+
           return {
             remoteParticipants: state.remoteParticipants.filter(
               (p) => p.producerId !== id && p.peerId !== id,
             ),
+            remoteVideoStreams: newVideos,
             consumers: newConsumers,
           };
         }),
 
-      // Локальные медиа
+      setRemoteVideoStream: (peerId, stream) =>
+        set((state) => {
+          if (!stream) {
+            const copy = { ...state.remoteVideoStreams };
+            delete copy[peerId];
+            return { remoteVideoStreams: copy };
+          }
+          return {
+            remoteVideoStreams: { ...state.remoteVideoStreams, [peerId]: stream },
+          };
+        }),
+
       addProducer: (producer) =>
         set((state) => ({
           producers: [...state.producers, producer],
@@ -123,19 +154,23 @@ export const useCallStore = create<CallState>()(
         })),
 
       setLocalStream: (stream) => set({ localStream: stream }),
+      setLocalVideoStream: (stream) => set({ localVideoStream: stream }),
+      setIsCameraActive: (active) => set({ isCameraActive: active }),
+      setIsScreenActive: (active) => set({ isScreenActive: active }),
+      setIsMicMuted: (muted) => set({ isMicMuted: muted }),
 
       setError: (error) => set({ error }),
 
-      // Полная очистка при выходе из звонка или отмене
       reset: () => {
         const state = get();
 
-        // Остановка локальных треков
         if (state.localStream) {
           state.localStream.getTracks().forEach((t) => t.stop());
         }
+        if (state.localVideoStream) {
+          state.localVideoStream.getTracks().forEach((t) => t.stop());
+        }
 
-        // Остановка всех удалённых аудио-потоков
         state.remoteParticipants.forEach((p) => {
           p.audio.pause();
           if (p.audio.srcObject) {
@@ -144,7 +179,6 @@ export const useCallStore = create<CallState>()(
           }
         });
 
-        // Закрытие всех потребителей (если необходимо на стороне клиента)
         Object.values(state.consumers).forEach((consumer) => {
           consumer.close();
         });
@@ -155,8 +189,13 @@ export const useCallStore = create<CallState>()(
           conversationId: null,
           error: null,
           localStream: null,
+          localVideoStream: null,
+          isCameraActive: false,
+          isScreenActive: false,
+          isMicMuted: false,
           producers: [],
           remoteParticipants: [],
+          remoteVideoStreams: {},
           consumers: {},
         });
       },
