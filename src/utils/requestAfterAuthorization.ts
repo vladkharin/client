@@ -8,10 +8,11 @@ export const requestAfterAuthorization = async () => {
   try {
     // Теперь они выполнятся по порядку или параллельно,
     // даже если сокет ещё в процессе "рукопожатия"
-    const [dm, friends, incoming] = await Promise.all([
+    const [dm, friends, incoming, servers] = await Promise.all([
       sendMessage("dm:list", {}),
       sendMessage("friend:list", {}),
       sendMessage("friend:incoming", {}),
+      sendMessage("server:list", {}),
     ]);
 
     if (dm) setChats(dm);
@@ -20,7 +21,12 @@ export const requestAfterAuthorization = async () => {
 
     if (incoming) setFriendRequest(incoming, "incoming");
 
-    console.log("Данные загружены:", { dm, friends, incoming });
+    if (servers) {
+      const serverList = Array.isArray(servers) ? servers : (servers as any)?.response || [];
+      useChatStore.getState().setServers(serverList);
+    }
+
+    console.log("Данные загружены:", { dm, friends, incoming, servers });
   } catch (e) {
     console.error("Ошибка при первичной загрузке:", e);
   }

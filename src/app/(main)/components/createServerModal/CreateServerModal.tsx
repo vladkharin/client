@@ -27,12 +27,13 @@ export default function CreateServerModal() {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await sendMessage(REQUESTS.serverCreate, {
+      const res: any = await sendMessage(REQUESTS.serverCreate, {
         name: serverName.trim(),
       });
 
-      if (res?.response) {
-        addServer(res.response);
+      const serverData = res?.response ?? res;
+      if (serverData && (serverData.id || serverData.name)) {
+        addServer(serverData);
         closeModal();
       }
     } catch (err: any) {
@@ -49,12 +50,13 @@ export default function CreateServerModal() {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await sendMessage(REQUESTS.serverJoin, {
+      const res: any = await sendMessage(REQUESTS.serverJoin, {
         inviteCode: inviteCode.trim(),
       });
 
-      if (res?.response) {
-        addServer(res.response);
+      const serverData = res?.response ?? res;
+      if (serverData && (serverData.id || serverData.name)) {
+        addServer(serverData);
         closeModal();
       }
     } catch (err: any) {

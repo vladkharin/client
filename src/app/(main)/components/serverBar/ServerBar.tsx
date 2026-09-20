@@ -21,9 +21,10 @@ export default function ServerBar() {
   useEffect(() => {
     async function loadServers() {
       try {
-        const res = await sendMessage(REQUESTS.serverList, {});
-        if (res?.response) {
-          setServers(res.response);
+        const res: any = await sendMessage(REQUESTS.serverList, {});
+        const serverList = Array.isArray(res) ? res : (res?.response ?? []);
+        if (Array.isArray(serverList)) {
+          setServers(serverList);
         }
       } catch (err) {
         console.error("Ошибка загрузки серверов:", err);
