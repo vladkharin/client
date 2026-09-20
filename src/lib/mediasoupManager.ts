@@ -395,6 +395,10 @@ export const consumeProducer = async (conversationId: number, producerId: string
       }
 
       document.body.appendChild(audio);
+      const peerUserId = Number(peerId);
+      if (!isNaN(peerUserId)) {
+        useMediaSettingsStore.getState().applyUserVolume(peerUserId);
+      }
 
       try {
         await audio.play();

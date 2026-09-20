@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useChatStore, useSocketStore, useUserStore, useCallStore } from "@/store";
 import { REQUESTS } from "@/commands/commands";
+import UserActionPopover from "../userActionPopover/UserActionPopover";
 import styles from "./memberList.module.css";
 
 interface ServerMemberItem {
@@ -50,22 +51,7 @@ export default function MemberList() {
   const [members, setMembers] = useState<ServerMemberItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMember, setSelectedMember] = useState<ServerMemberItem | null>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; right: number } | null>(null);
-
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  // Close popover on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setSelectedMember(null);
-      }
-    }
-    if (selectedMember) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [selectedMember]);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (!activeServer?.id) {
@@ -102,27 +88,11 @@ export default function MemberList() {
 
   const handleMemberClick = (member: ServerMemberItem, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (member.userId === user_id) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const top = Math.min(rect.top, window.innerHeight - 360);
-    setPopoverPos({ top, right: 260 });
+    const top = Math.min(rect.top, window.innerHeight - 380);
+    setPopoverPos({ top, left: Math.max(12, rect.left - 290) });
     setSelectedMember(member);
-  };
-
-  const handleOpenDM = (member: ServerMemberItem) => {
-    if (member.userId === user_id) return;
-    const chat = findOrCreateDirectChat(member.userId, member.username);
-    setActiveChat(chat);
-    setSelectedMember(null);
-  };
-
-  const handleCallUser = (member: ServerMemberItem) => {
-    if (member.userId === user_id) return;
-    const chat = findOrCreateDirectChat(member.userId, member.username);
-    setActiveChat(chat);
-    setConversationId(chat.id);
-    setOutgoing(true);
-    sendMessage(REQUESTS.callRequest, { conversationId: chat.id });
-    setSelectedMember(null);
   };
 
   const isUserOnline = (m: ServerMemberItem) => {
@@ -204,71 +174,27 @@ export default function MemberList() {
         )}
       </div>
 
-      {/* КАРТОЧКА МИНИ-ПРОФИЛЯ УЧАСТНИКА (POPOVER) */}
-      {selectedMember && popoverPos && (
-        <div
-          ref={popoverRef}
-          className={styles.popover}
-          style={{ top: `${popoverPos.top}px`, right: `${popoverPos.right}px` }}
-        >
-          <div
-            className={styles.popoverBanner}
-            style={{ background: getAvatarGradient(selectedMember.username) }}
-          />
-          <div className={styles.popoverBody}>
-            <div
-              className={styles.popoverAvatar}
-              style={{ background: getAvatarGradient(selectedMember.username) }}
-            >
-              {getInitials(selectedMember.name || selectedMember.username)}
-              <span className={isUserOnline(selectedMember) ? styles.statusIndicator : styles.offlineIndicator} />
-            </div>
-
-            <div className={styles.popoverInfo}>
-              <div className={styles.popoverName}>
-                {selectedMember.name
-                  ? `${selectedMember.name} ${selectedMember.surname || ""}`.trim()
-                  : selectedMember.username}
-              </div>
-              <div className={styles.popoverUsername}>@{selectedMember.username}</div>
-
-              {selectedMember.customStatus && (
-                <div className={styles.popoverCustomStatus}>
-                  <span>{selectedMember.statusEmoji || "✨"}</span>
-                  <span>{selectedMember.customStatus}</span>
-                </div>
-              )}
-
-              <div className={styles.popoverBadge}>
-                {selectedMember.role === "OWNER"
-                  ? "👑 Создатель сервера"
-                  : selectedMember.role === "ADMIN"
-                  ? "🛡️ Администратор"
-                  : "👤 Участник"}
-              </div>
-            </div>
-
-            {selectedMember.userId !== user_id && (
-              <div className={styles.popoverActions}>
-                <button
-                  type="button"
-                  className={styles.popoverActionBtn}
-                  onClick={() => handleOpenDM(selectedMember)}
-                >
-                  💬 Написать в ЛС
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.popoverActionBtn} ${styles.popoverCallBtn}`}
-                  onClick={() => handleCallUser(selectedMember)}
-                >
-                  📞 Позвонить
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Меню действий с пользователем */}
+      <UserActionPopover
+        isOpen={!!selectedMember}
+        user={
+          selectedMember
+            ? {
+                id: selectedMember.userId,
+                username: selectedMember.username,
+                name: selectedMember.name,
+                surname: selectedMember.surname,
+                avatar: selectedMember.avatar,
+                customStatus: selectedMember.customStatus,
+                statusEmoji: selectedMember.statusEmoji,
+                isOnline: isUserOnline(selectedMember),
+                role: selectedMember.role,
+              }
+            : null
+        }
+        anchorPos={popoverPos}
+        onClose={() => setSelectedMember(null)}
+      />
     </aside>
   );
 }

@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 import CreateChannelModal from "../createChannelModal/CreateChannelModal";
 import ChannelSettingsModal from "../channelSettingsModal/ChannelSettingsModal";
 import ConfirmModal from "../confirmModal/ConfirmModal";
+import UserActionPopover, { TargetUserAction } from "../userActionPopover/UserActionPopover";
 import {
   joinMediasoupRoom,
   leaveMediasoupRoom,
@@ -72,6 +73,8 @@ export default function ChatList() {
   const [channelToEdit, setChannelToEdit] = useState<CHAT | null>(null);
   const [isDeleteServerOpen, setIsDeleteServerOpen] = useState(false);
   const [isLeaveServerOpen, setIsLeaveServerOpen] = useState(false);
+  const [selectedUserAction, setSelectedUserAction] = useState<TargetUserAction | null>(null);
+  const [userActionPos, setUserActionPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (activeServer?.channels) {
@@ -489,7 +492,19 @@ export default function ChatList() {
                         const userCam = isMe ? isCameraActive : user.hasVideo;
 
                         return (
-                          <div key={user.id} className={styles.voice_user_row} title={user.username}>
+                          <div
+                            key={user.id}
+                            className={styles.voice_user_row}
+                            title={isMe ? `${user.username} (Вы)` : `Нажмите для действий с ${user.username}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isMe) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setUserActionPos({ top: rect.top, left: rect.right + 10 });
+                                setSelectedUserAction(user);
+                              }
+                            }}
+                          >
                             <div
                               className={`${styles.voice_user_avatar} ${!userMuted ? styles.voice_user_speaking : ""}`}
                               style={{ background: getAvatarGradient(user.username) }}
@@ -556,6 +571,14 @@ export default function ChatList() {
             onClose={() => setChannelToEdit(null)}
           />
         )}
+
+        {/* Меню действий с пользователем */}
+        <UserActionPopover
+          isOpen={!!selectedUserAction}
+          user={selectedUserAction}
+          anchorPos={userActionPos}
+          onClose={() => setSelectedUserAction(null)}
+        />
       </aside>
     );
   }
@@ -691,6 +714,14 @@ export default function ChatList() {
       )}
 
       {voiceConnectedWidget}
+
+      {/* Меню действий с пользователем */}
+      <UserActionPopover
+        isOpen={!!selectedUserAction}
+        user={selectedUserAction}
+        anchorPos={userActionPos}
+        onClose={() => setSelectedUserAction(null)}
+      />
     </aside>
   );
 }

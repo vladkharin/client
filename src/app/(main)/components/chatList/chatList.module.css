@@ -415,10 +415,11 @@
   color: var(--text-secondary);
   transition: all 0.15s ease;
   background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
 }
 
 .voice_user_row:hover {
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
 }
 

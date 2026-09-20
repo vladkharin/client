@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import styles from "./voiceRoomStage.module.css";
 import { ChannelUser } from "@/store/modules/callStore";
 import { useUserStore, useCallStore } from "@/store";
+import UserActionPopover, { TargetUserAction } from "../userActionPopover/UserActionPopover";
 import {
   joinMediasoupRoom,
   leaveMediasoupRoom,
@@ -53,11 +54,13 @@ function VideoTile({
   username,
   isMe,
   isMuted,
+  onClick,
 }: {
   stream: MediaStream;
   username: string;
   isMe: boolean;
   isMuted: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -68,7 +71,11 @@ function VideoTile({
   }, [stream]);
 
   return (
-    <div className={`${styles.userCard} ${!isMuted ? styles.speaking : ""}`} style={{ padding: 0, background: "#0b0e14" }}>
+    <div
+      className={`${styles.userCard} ${!isMuted ? styles.speaking : ""}`}
+      style={{ padding: 0, background: "#0b0e14" }}
+      onClick={onClick}
+    >
       <video
         ref={videoRef}
         autoPlay
@@ -103,6 +110,9 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
 }) => {
   const { user_id, username: myUsername, setProfileModalOpen } = useUserStore();
   const { voiceConnectionState } = useCallStore();
+
+  const [selectedUserAction, setSelectedUserAction] = useState<TargetUserAction | null>(null);
+  const [userActionPos, setUserActionPos] = useState<{ top: number; left: number } | null>(null);
 
   // Merge participants with local user if in room and not yet listed
   const allUsers = [...participants];
@@ -192,6 +202,12 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                     username={user.username}
                     isMe={false}
                     isMuted={userMuted}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setUserActionPos({ top: rect.bottom + 8, left: rect.left });
+                      setSelectedUserAction(user);
+                    }}
                   />
                 );
               }
@@ -200,6 +216,15 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                 <div
                   key={user.id}
                   className={`${styles.userCard} ${!userMuted ? styles.speaking : ""}`}
+                  title={isMe ? `${user.username} (Вы)` : `Нажмите для действий с ${user.username}`}
+                  onClick={(e) => {
+                    if (!isMe) {
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setUserActionPos({ top: rect.bottom + 8, left: rect.left });
+                      setSelectedUserAction(user);
+                    }
+                  }}
                 >
                   <div className={styles.avatarWrapper}>
                     <div
@@ -311,6 +336,14 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
           </button>
         </div>
       )}
+
+      {/* Меню действий с пользователем */}
+      <UserActionPopover
+        isOpen={!!selectedUserAction}
+        user={selectedUserAction}
+        anchorPos={userActionPos}
+        onClose={() => setSelectedUserAction(null)}
+      />
     </div>
   );
 };

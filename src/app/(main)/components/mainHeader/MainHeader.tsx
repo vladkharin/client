@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useChatStore, useFinderStore, useUserStore } from "@/store";
-import { requestNotificationPermission } from "@/lib/firebase";
+import { requestNotificationPermission, autoInitPushNotifications } from "@/lib/firebase";
 import styles from "./header.module.css";
 
 import { toast } from "react-toastify";
@@ -20,7 +20,10 @@ export default function MainHeader() {
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
-      setNotifGranted(Notification.permission === "granted");
+      if (Notification.permission === "granted") {
+        setNotifGranted(true);
+        autoInitPushNotifications();
+      }
     }
   }, []);
 

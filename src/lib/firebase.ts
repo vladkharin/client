@@ -19,6 +19,16 @@ export const initFirebase = () => {
   return getApps()[0] || null;
 };
 
+export async function autoInitPushNotifications(): Promise<string | null> {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return null;
+  }
+  if (Notification.permission === "granted") {
+    return requestNotificationPermission();
+  }
+  return null;
+}
+
 export async function requestNotificationPermission(): Promise<string | null> {
   if (typeof window === "undefined" || !("Notification" in window)) {
     console.log("Notifications are not supported in this browser.");
