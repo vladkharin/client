@@ -18,11 +18,13 @@ export default function CallOverlay() {
     reset();
   };
 
+  const totalCallMembers = new Set(remoteParticipants.map((p) => p.peerId)).size + 1;
+
   return (
     <div className={styles.overlay}>
       <div className={styles.info}>
         <div className={styles.pulse_icon} />
-        <span className={styles.status}>В звонке ({remoteParticipants.length + 1} чел.)</span>
+        <span className={styles.status}>В звонке ({totalCallMembers} чел.)</span>
       </div>
 
       <div className={styles.controls}>

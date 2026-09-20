@@ -71,9 +71,17 @@ export const useCallStore = create<CallState>()(
 
       // Управление участниками
       addRemoteParticipant: (peerId, producerId, audio) =>
-        set((state) => ({
-          remoteParticipants: [...state.remoteParticipants, { peerId, producerId, audio }],
-        })),
+        set((state) => {
+          const old = state.remoteParticipants.find((p) => p.peerId === peerId || p.producerId === producerId);
+          if (old && old.audio !== audio) {
+            old.audio.pause();
+            old.audio.remove();
+          }
+          const filtered = state.remoteParticipants.filter((p) => p.peerId !== peerId && p.producerId !== producerId);
+          return {
+            remoteParticipants: [...filtered, { peerId, producerId, audio }],
+          };
+        }),
 
       removeRemoteParticipant: (producerId) =>
         set((state) => {
