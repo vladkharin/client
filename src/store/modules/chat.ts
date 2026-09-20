@@ -1,4 +1,4 @@
-import { CHAT } from "@/types/types";
+import { CHAT, ServerItem } from "@/types/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 
@@ -16,39 +16,65 @@ export interface MessageReply {
   id: number;
   content: string;
   imageUrl?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
   sender: { id: number; username: string };
+}
+
+export interface MessageReaction {
+  id: number;
+  messageId: number;
+  userId: number;
+  emoji: string;
+  user?: { id: number; username: string };
 }
 
 export interface MessageChat {
   id: number;
   content: string;
   imageUrl?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  fileType?: string | null;
+  audioDuration?: number | null;
+  isPinned?: boolean;
+  expiresAt?: string | null;
   editedAt?: string | null;
   deletedAt?: string | null;
   replyToId?: number | null;
   replyTo?: MessageReply | null;
+  reactions?: MessageReaction[];
   conversationId: number;
   createdAt: string;
-  sender: { id: number; username: string };
+  sender: { id: number; username: string; avatar?: string | null };
   senderId: number;
 }
 
 interface CHAT_STATE {
   chats: CHAT[] | null;
   activeChat: CHAT | null;
+  servers: ServerItem[];
+  activeServer: ServerItem | null;
   inComingCall: IncomingCall | null;
   acceptedCall: AcceptedCall | null;
   messages: MessageChat[];
   isChatsLoading: boolean;
   isMessagesLoading: boolean;
   createGroupModalOpen: boolean;
+  createServerModalOpen: boolean;
   typingUsers: Record<number, string[]>;
+
   setIsChatsLoading: (loading: boolean) => void;
   setIsMessagesLoading: (loading: boolean) => void;
   setCreateGroupModalOpen: (open: boolean) => void;
+  setCreateServerModalOpen: (open: boolean) => void;
   setChats: (chats: CHAT[]) => void;
   addChat: (chat: CHAT) => void;
-  setActiveChat: (chat: CHAT) => void;
+  setActiveChat: (chat: CHAT | null) => void;
+  setServers: (servers: ServerItem[]) => void;
+  addServer: (server: ServerItem) => void;
+  setActiveServer: (server: ServerItem | null) => void;
   setIncomingCall: (inComingCall: IncomingCall | null) => void;
   setAcceptedCall: (call: AcceptedCall) => void;
   clearAcceptedCall: () => void;
@@ -56,6 +82,8 @@ interface CHAT_STATE {
   addMessage: (message: MessageChat) => void;
   updateMessage: (messageId: number, content: string, editedAt?: string) => void;
   deleteMessage: (messageId: number) => void;
+  updateMessageReactions: (messageId: number, reactions: MessageReaction[]) => void;
+  setPinnedMessage: (conversationId: number, pinnedMessage: any) => void;
   setUserTyping: (conversationId: number, username: string, isTyping: boolean) => void;
   prependMessages: (messages: MessageChat[]) => void;
 
@@ -71,18 +99,26 @@ export const useChatStore = create<CHAT_STATE>()(
     (set, get) => ({
       chats: null,
       activeChat: null,
+      servers: [],
+      activeServer: null,
       inComingCall: null,
       acceptedCall: null,
       messages: [],
       isChatsLoading: true,
       isMessagesLoading: false,
       createGroupModalOpen: false,
+      createServerModalOpen: false,
       typingUsers: {},
+
       setIsChatsLoading: (isChatsLoading: boolean) => set({ isChatsLoading }),
       setIsMessagesLoading: (isMessagesLoading: boolean) => set({ isMessagesLoading }),
       setCreateGroupModalOpen: (open: boolean) => set({ createGroupModalOpen: open }),
+      setCreateServerModalOpen: (open: boolean) => set({ createServerModalOpen: open }),
       setChats: (chats: CHAT[]) => set({ chats, isChatsLoading: false }),
-      setActiveChat: (chat: CHAT) => set({ activeChat: chat }),
+      setActiveChat: (chat: CHAT | null) => set({ activeChat: chat }),
+      setServers: (servers: ServerItem[]) => set({ servers }),
+      addServer: (server: ServerItem) => set((state) => ({ servers: [...state.servers, server] })),
+      setActiveServer: (server: ServerItem | null) => set({ activeServer: server }),
       setIncomingCall: (inComingCall: IncomingCall | null) => set({ inComingCall }),
       setAcceptedCall: (call) => set({ acceptedCall: call }),
       clearAcceptedCall: () => set({ acceptedCall: null }),
@@ -98,6 +134,25 @@ export const useChatStore = create<CHAT_STATE>()(
       deleteMessage: (messageId: number) =>
         set((state) => ({
           messages: state.messages.filter((m) => m.id !== messageId),
+        })),
+
+      updateMessageReactions: (messageId: number, reactions: MessageReaction[]) =>
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === messageId ? { ...m, reactions } : m,
+          ),
+        })),
+
+      setPinnedMessage: (conversationId: number, pinnedMessage: any) =>
+        set((state) => ({
+          activeChat:
+            state.activeChat?.id === conversationId
+              ? { ...state.activeChat, pinnedMessage }
+              : state.activeChat,
+          chats:
+            state.chats?.map((c) =>
+              c.id === conversationId ? { ...c, pinnedMessage } : c,
+            ) || null,
         })),
 
       setUserTyping: (conversationId: number, username: string, isTyping: boolean) =>
@@ -136,32 +191,25 @@ export const useChatStore = create<CHAT_STATE>()(
 
       findOrCreateDirectChat: (userId: number, username: string) => {
         const { chats } = get();
-
-        // 1. Ищем существующий DIRECT чат с этим пользователем по interlocutor.id
         const existingChat = chats?.find((chat) => chat.interlocutor?.id === userId);
 
         if (existingChat) {
-          console.log("✅ Found existing chat:", existingChat.id);
           return existingChat;
         }
 
-        // 2. Создаём временный чат в новом формате
         const temporaryChat: CHAT & { isTemporary: boolean } = {
-          id: Date.now(), // Временный ID (TIMESTAMP)
+          id: Date.now(),
           updatedAt: new Date().toISOString(),
           lastMessage: null,
-          isTemporary: true, // Флаг для логики удаления
+          isTemporary: true,
           interlocutor: {
             id: userId,
             username: username,
-            name: null, // Пока нет данных
-            surname: null, // Пока нет данных
+            name: null,
+            surname: null,
           },
         };
 
-        console.log("🆕 Created temporary chat:", temporaryChat.id);
-
-        // Добавляем в список чатов
         set((state) => ({
           chats: state.chats ? [temporaryChat, ...state.chats] : [temporaryChat],
         }));
@@ -169,33 +217,26 @@ export const useChatStore = create<CHAT_STATE>()(
         return temporaryChat;
       },
 
-      // 🔹 Удалить временный чат
       removeTemporaryChat: (chatId: number) => {
         const { activeChat } = get();
-
         set((state) => ({
           chats: state.chats?.filter((c) => c.id !== chatId) ?? null,
           activeChat: activeChat?.id === chatId ? null : activeChat,
         }));
-        console.log("🗑️ Removed temporary chat:", chatId);
       },
 
       replaceTemporaryChat: (tempId: number, realChat: CHAT) => {
         set((state) => {
           const isUpdatingActive = state.activeChat?.id === tempId;
-
-          // Заменяем в списке чатов
           const newChats = state.chats?.map((chat) => (chat.id === tempId ? { ...realChat, isTemporary: false } : chat)) ?? null;
 
           return {
             chats: newChats,
-            // Если этот чат сейчас открыт — обновляем и активный чат
             activeChat: isUpdatingActive ? { ...realChat, isTemporary: false } : state.activeChat,
           };
         });
       },
 
-      // 🔹 Обновить последнее сообщение в чате
       updateChatLastMessage: (chatId: number, message: MessageChat) => {
         set((state) => ({
           chats:
@@ -203,9 +244,9 @@ export const useChatStore = create<CHAT_STATE>()(
               if (chat.id === chatId) {
                 return {
                   ...chat,
-                  updatedAt: message.createdAt, // Обновляем дату чата на дату сообщения
+                  updatedAt: message.createdAt,
                   lastMessage: {
-                    text: message.content, // Конвертируем content в text
+                    text: message.content,
                     createdAt: message.createdAt,
                   },
                 };
@@ -217,12 +258,10 @@ export const useChatStore = create<CHAT_STATE>()(
 
       onNewChat: (newChat: CHAT) => {
         set((state) => {
-          // Проверяем, нет ли уже такого чата (защита от дублей)
           const exists = state.chats?.some((c) => c.id === newChat.id);
           if (exists) return state;
 
           return {
-            // Добавляем новый чат в начало списка
             chats: state.chats ? [newChat, ...state.chats] : [newChat],
           };
         });

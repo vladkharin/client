@@ -13,10 +13,12 @@ import MainHeader from "../components/mainHeader/MainHeader";
 import FriendModal from "../components/friendModal/FriendModal";
 import OutgoingCallModal from "../components/outgoingCallModal/outgoingCallModal";
 import CreateGroupModal from "../components/createGroupModal/CreateGroupModal";
+import CreateServerModal from "../components/createServerModal/CreateServerModal";
 import ProfileModal from "../components/profileModal/ProfileModal";
+import ServerBar from "../components/serverBar/ServerBar";
 
 export default function Page() {
-  const { inComingCall, createGroupModalOpen, activeChat } = useChatStore();
+  const { inComingCall, createGroupModalOpen, createServerModalOpen, activeChat } = useChatStore();
   const { isOutgoing } = useCallStore();
   const { state } = useFinderStore();
   const { friendRequestsState, friendListState, profileModalOpen } = useUserStore();
@@ -26,9 +28,15 @@ export default function Page() {
       <div className={styles.wrapper}>
         <MainHeader />
         <div className={`${styles.content} ${activeChat ? styles.hasActiveChat : styles.noActiveChat}`}>
+          {/* Левая боковая панель серверов */}
+          <ServerBar />
+
+          {/* Список чатов или каналов сервера */}
           <div className={styles.chatListContainer}>
             <ChatList />
           </div>
+
+          {/* Сообщения активного диалога */}
           <div className={styles.messagesContainer}>
             <WrapperMessages />
           </div>
@@ -40,6 +48,7 @@ export default function Page() {
         {friendRequestsState && <IncomingRequestsModal />}
         {friendListState && <FriendModal />}
         {createGroupModalOpen && <CreateGroupModal />}
+        {createServerModalOpen && <CreateServerModal />}
         {profileModalOpen && <ProfileModal />}
       </div>
     </AuthGuard>

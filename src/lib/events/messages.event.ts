@@ -32,6 +32,22 @@ export const MessagesEvents = (socket: Socket) => {
     }
   });
 
+  socket.off(NOTIFICATIONS.reactionUpdated);
+  socket.on(NOTIFICATIONS.reactionUpdated, (data: { messageId: number; conversationId: number; reactions: any[] }) => {
+    const { updateMessageReactions } = useChatStore.getState();
+    if (data?.messageId && data?.reactions) {
+      updateMessageReactions(data.messageId, data.reactions);
+    }
+  });
+
+  socket.off(NOTIFICATIONS.messagePinned);
+  socket.on(NOTIFICATIONS.messagePinned, (data: { conversationId: number; pinnedMessage: any }) => {
+    const { setPinnedMessage } = useChatStore.getState();
+    if (data?.conversationId) {
+      setPinnedMessage(data.conversationId, data.pinnedMessage);
+    }
+  });
+
   socket.off(NOTIFICATIONS.userTyping);
   socket.on(NOTIFICATIONS.userTyping, (data: { userId: number; username: string; conversationId: number; isTyping: boolean }) => {
     const { setUserTyping } = useChatStore.getState();
@@ -49,4 +65,3 @@ export const MessagesEvents = (socket: Socket) => {
     }
   });
 };
-

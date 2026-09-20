@@ -7,13 +7,13 @@ let device: mediasoup.types.Device | null = null;
 let sendTransport: mediasoup.types.Transport | null = null;
 let recvTransport: mediasoup.types.Transport | null = null;
 let audioProduced = false;
+let videoProducer: mediasoup.types.Producer | null = null;
 const pendingProducers: Array<{ conversationId: number; producerId: string; peerId: string }> = [];
 const consumedProducerIds = new Set<string>();
 
 export const joinMediasoupRoom = async (conversationId: number) => {
   console.log("📞 joinMediasoupRoom вызван для conversationId:", conversationId);
 
-  // Сбрасываем предыдущие соединения и флаги перед началом нового звонка
   audioProduced = false;
   consumedProducerIds.clear();
   pendingProducers.length = 0;
@@ -53,10 +53,10 @@ export const joinMediasoupRoom = async (conversationId: number) => {
 
     useCallStore.setState({ conversationId, inCall: true, error: null });
 
-    // 3. Сразу запускаем публикацию своего микрофона (без задержек!)
+    // 3. Запускаем публикацию своего микрофона
     produceAudio().catch(console.error);
 
-    // 4. Обрабатываем продюсеры, которые могли прийти пока создавался транспорт
+    // 4. Обрабатываем продюсеры из очереди
     while (pendingProducers.length > 0) {
       const p = pendingProducers.shift();
       if (p) {
@@ -64,7 +64,7 @@ export const joinMediasoupRoom = async (conversationId: number) => {
       }
     }
 
-    // 5. Запрашиваем у сервера список уже существующих продюсеров в комнате
+    // 5. Запрашиваем существующих продюсеров
     try {
       const existingProducers = await sendMessage("mediasoup:getProducers", { conversationId });
       if (Array.isArray(existingProducers)) {
@@ -173,25 +173,91 @@ async function produceAudio() {
     useCallStore.getState().setLocalStream(stream);
 
     const track = stream.getAudioTracks()[0];
-    console.log("🎧 Аудиотрек захвачен:", track.label, "enabled:", track.enabled);
-
     if (!track || track.readyState === "ended" || !track.enabled) {
       throw new Error("Invalid audio track");
     }
 
-    console.log("🔄 Вызываем sendTransport.produce...");
     const producer = await sendTransport.produce({ track });
-    console.log("✅ Audio Producer успешно создан:", producer.id);
-
     useCallStore.getState().addProducer({ id: producer.id, kind: "audio", track });
 
     producer.on("transportclose", () => {
-      console.log("Producer transport closed");
       useCallStore.getState().removeProducer(producer.id);
     });
   } catch (e) {
     console.error("💥 produceAudio failed:", e);
     audioProduced = false;
+  }
+}
+
+export async function toggleCamera(): Promise<boolean> {
+  if (!sendTransport) return false;
+
+  if (videoProducer) {
+    videoProducer.close();
+    useCallStore.getState().removeProducer(videoProducer.id);
+    videoProducer = null;
+    return false;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, frameRate: 24 },
+    });
+    const track = stream.getVideoTracks()[0];
+    if (!track) return false;
+
+    videoProducer = await sendTransport.produce({ track });
+    useCallStore.getState().addProducer({ id: videoProducer.id, kind: "video", track });
+
+    videoProducer.on("transportclose", () => {
+      if (videoProducer) useCallStore.getState().removeProducer(videoProducer.id);
+      videoProducer = null;
+    });
+
+    return true;
+  } catch (err) {
+    console.error("Failed to toggle camera:", err);
+    return false;
+  }
+}
+
+export async function toggleScreenShare(): Promise<boolean> {
+  if (!sendTransport) return false;
+
+  if (videoProducer) {
+    videoProducer.close();
+    useCallStore.getState().removeProducer(videoProducer.id);
+    videoProducer = null;
+    return false;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+    });
+    const track = stream.getVideoTracks()[0];
+    if (!track) return false;
+
+    videoProducer = await sendTransport.produce({ track });
+    useCallStore.getState().addProducer({ id: videoProducer.id, kind: "video", track });
+
+    videoProducer.on("transportclose", () => {
+      if (videoProducer) useCallStore.getState().removeProducer(videoProducer.id);
+      videoProducer = null;
+    });
+
+    track.onended = () => {
+      if (videoProducer) {
+        videoProducer.close();
+        useCallStore.getState().removeProducer(videoProducer.id);
+        videoProducer = null;
+      }
+    };
+
+    return true;
+  } catch (err) {
+    console.error("Failed to share screen:", err);
+    return false;
   }
 }
 
@@ -201,7 +267,6 @@ export const consumeProducer = async (conversationId: number, producerId: string
     return;
   }
 
-  // Если ресивер еще не готов — сохраняем в очередь
   if (!device || !recvTransport) {
     console.log(`⏳ recvTransport еще не готов, сохраняем producer ${producerId} в очередь`);
     pendingProducers.push({ conversationId, producerId, peerId });
@@ -209,12 +274,10 @@ export const consumeProducer = async (conversationId: number, producerId: string
   }
 
   consumedProducerIds.add(producerId);
-  console.log(`%c🎧 [Consume START] Producer: ${producerId} для Peer: ${peerId}`, "color: #00ff00; font-weight: bold");
 
   try {
     const { sendMessage } = useSocketStore.getState();
 
-    // 1. Запрос к серверу на создание консьюмера
     const response = await sendMessage("mediasoup:consume", {
       conversationId: Number(conversationId),
       producerId,
@@ -222,9 +285,6 @@ export const consumeProducer = async (conversationId: number, producerId: string
       transportId: recvTransport.id,
     });
 
-    console.log("📩 [Consume] Сервер подтвердил Consume, ID:", response.id);
-
-    // 2. Локальное создание Consumer в WebRTC транспорте
     const consumer = await recvTransport.consume({
       id: response.id,
       producerId: response.producerId,
@@ -232,43 +292,44 @@ export const consumeProducer = async (conversationId: number, producerId: string
       rtpParameters: response.rtpParameters,
     });
 
-    console.log(`✅ [Consume] MediaSoup Consumer создан: kind=${consumer.kind}`);
-
     const { track } = consumer;
     const stream = new MediaStream([track]);
 
-    // 3. Удаляем старый аудио-элемент этого пира если был
-    const oldAudio = document.getElementById(`remote-audio-${peerId}`);
-    if (oldAudio) {
-      oldAudio.remove();
+    if (consumer.kind === "audio") {
+      const oldAudio = document.getElementById(`remote-audio-${peerId}`);
+      if (oldAudio) oldAudio.remove();
+
+      const audio = document.createElement("audio");
+      audio.id = `remote-audio-${peerId}`;
+      audio.srcObject = stream;
+      audio.autoplay = true;
+      audio.setAttribute("playsinline", "true");
+      document.body.appendChild(audio);
+
+      try {
+        await audio.play();
+      } catch (err) {
+        const unlock = async () => {
+          try {
+            await audio.play();
+          } catch {}
+          window.removeEventListener("click", unlock);
+        };
+        window.addEventListener("click", unlock);
+      }
+
+      useCallStore.getState().addRemoteParticipant(peerId, producerId, audio);
+    } else if (consumer.kind === "video") {
+      const oldVideo = document.getElementById(`remote-video-${peerId}`) as HTMLVideoElement;
+      if (oldVideo) oldVideo.remove();
+
+      const video = document.createElement("video");
+      video.id = `remote-video-${peerId}`;
+      video.srcObject = stream;
+      video.autoplay = true;
+      video.setAttribute("playsinline", "true");
+      document.body.appendChild(video);
     }
-
-    // 4. Создаем HTMLAudioElement
-    const audio = document.createElement("audio");
-    audio.id = `remote-audio-${peerId}`;
-    audio.srcObject = stream;
-    audio.autoplay = true;
-    audio.setAttribute("playsinline", "true");
-    document.body.appendChild(audio);
-
-    try {
-      await audio.play();
-      console.log(`%c🔊 [Audio SUCCESS] Звук для ${peerId} воспроизводится!`, "color: #00ff00");
-    } catch (err) {
-      console.warn("🔇 [Audio Autoplay Blocked] Ожидание взаимодействия пользователя:", err);
-      const unlock = async () => {
-        try {
-          await audio.play();
-          console.log("🔊 [Audio UNLOCKED] Звук включен после клика");
-        } catch {}
-        window.removeEventListener("click", unlock);
-        window.removeEventListener("touchstart", unlock);
-      };
-      window.addEventListener("click", unlock);
-      window.addEventListener("touchstart", unlock);
-    }
-
-    useCallStore.getState().addRemoteParticipant(peerId, producerId, audio);
   } catch (error) {
     console.error("❌ [Consume FATAL]:", error);
     consumedProducerIds.delete(producerId);
@@ -279,9 +340,13 @@ export const leaveMediasoupRoom = () => {
   audioProduced = false;
   consumedProducerIds.clear();
   pendingProducers.length = 0;
+  if (videoProducer) {
+    videoProducer.close();
+    videoProducer = null;
+  }
 
-  // Очищаем аудио-элементы
   document.querySelectorAll('audio[id^="remote-audio-"]').forEach((el) => el.remove());
+  document.querySelectorAll('video[id^="remote-video-"]').forEach((el) => el.remove());
 
   sendTransport?.close();
   recvTransport?.close();
@@ -294,6 +359,4 @@ export const leaveMediasoupRoom = () => {
     useSocketStore.getState().sendMessage("mediasoup:leaveRoom", { conversationId });
   }
   useCallStore.getState().reset();
-  console.log("🧹 MediaSoup сессия завершена и очищена");
 };
-

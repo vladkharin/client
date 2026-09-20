@@ -22,25 +22,57 @@ export interface Interlocutor {
   username: string;
   name: string | null;
   surname: string | null;
+  avatar?: string | null;
+  customStatus?: string | null;
+  statusEmoji?: string | null;
+  lastSeenAt?: string | null;
 }
 
 export interface LastMessage {
   text: string;
-  createdAt: Date | string; // Date для бэкенда, string для фронтенда после JSON.stringify
+  createdAt: Date | string;
+}
+
+export interface PinnedMessageInfo {
+  id: number;
+  content: string;
+  sender: { id: number; username: string };
+  createdAt: string;
 }
 
 export interface CHAT {
   id: number;
-  type?: "DIRECT" | "GROUP" | "SERVER_CHANNEL";
+  type?: "DIRECT" | "GROUP" | "SERVER_CHANNEL" | "SERVER_VOICE";
   name?: string | null;
+  avatar?: string | null;
   updatedAt: Date | string;
   lastMessage: LastMessage | null;
   interlocutor: Interlocutor | null;
   isTemporary?: boolean;
   membersCount?: number;
+  pinnedMessage?: PinnedMessageInfo | null;
+  serverId?: number | null;
 }
 
-export type FriendStatus = "PENDING" | "ACCEPTED" | "BLOCKED"; // 👈 Расширьте по необходимости
+export interface ReactionItem {
+  id: number;
+  messageId: number;
+  userId: number;
+  emoji: string;
+  username?: string;
+}
+
+export interface ServerItem {
+  id: number;
+  name: string;
+  icon?: string | null;
+  ownerId: number;
+  inviteCode: string;
+  channels: CHAT[];
+  membersCount?: number;
+}
+
+export type FriendStatus = "PENDING" | "ACCEPTED" | "BLOCKED";
 
 export interface FriendUser {
   id: number;
@@ -48,25 +80,23 @@ export interface FriendUser {
 }
 
 export interface FriendshipInfo {
-  id: number; // ID записи в таблице friend
-  status: FriendStatus; // Статус дружбы
-  createdAt: string; // ISO 8601 date string
-  isInitiator: boolean; // true = я отправил запрос, false = мне отправили
+  id: number;
+  status: FriendStatus;
+  createdAt: string;
+  isInitiator: boolean;
 }
 
 export interface FriendListItem extends FriendUser {
   friendship: FriendshipInfo;
 }
 
-// 👇 Для массива:
 export type FriendList = FriendListItem[];
 
-// 👇 ОДИН интерфейс для всех случаев
 export interface RespondToRequestResult {
-  success: boolean; // true = ок, false = ошибка
-  action?: "accepted" | "declined"; // только если success: true
-  friend?: FriendListItem; // только если action: 'accepted'
-  friendId?: number; // только если action: 'declined' (для удаления из списка заявок)
-  error?: string; // только если success: false
+  success: boolean;
+  action?: "accepted" | "declined";
+  friend?: FriendListItem;
+  friendId?: number;
+  error?: string;
   friendshipId?: number;
 }

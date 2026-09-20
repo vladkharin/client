@@ -1,10 +1,11 @@
+"use client";
+
 import { useChatStore } from "@/store/modules/chat";
 import styles from "./chatList.module.css";
 import { CHAT } from "@/types/types";
 import { useSocketStore, useUserStore } from "@/store";
 import { REQUESTS } from "@/commands/commands";
 
-// Deterministic gradient generator for avatars
 function getAvatarGradient(str: string = "") {
   const gradients = [
     "linear-gradient(135deg, #f97316, #fb923c)",
@@ -32,6 +33,7 @@ export default function ChatList() {
     chats,
     setActiveChat,
     activeChat,
+    activeServer,
     setMessages,
     isChatsLoading,
     setIsMessagesLoading,
@@ -64,12 +66,87 @@ export default function ChatList() {
     }
   };
 
-  const directChats = chats?.filter((c) => c.type !== "GROUP") || [];
+  // ЕСЛИ ВЫБРАН СЕРВЕР: Показываем каналы сервера
+  if (activeServer) {
+    const textChannels = activeServer.channels?.filter((c) => c.type !== "SERVER_VOICE") || [];
+    const voiceChannels = activeServer.channels?.filter((c) => c.type === "SERVER_VOICE") || [];
+
+    return (
+      <aside className={styles.chats_wrapper}>
+        <div className={styles.section} style={{ paddingTop: "14px" }}>
+          <div className={styles.section_title}>
+            <span>{activeServer.name}</span>
+            <span className={styles.count_badge}>
+              {activeServer.membersCount || 1} участников
+            </span>
+          </div>
+
+          <div style={{ padding: "0 14px 10px 14px", fontSize: "11px", color: "var(--text-muted)" }}>
+            Инвайт-код: <code style={{ color: "var(--primary)" }}>{activeServer.inviteCode}</code>
+          </div>
+
+          {/* Текстовые каналы */}
+          <div className={styles.section_title} style={{ marginTop: "10px" }}>
+            <span>Текстовые каналы</span>
+          </div>
+          <div className={styles.chats_list}>
+            {textChannels.map((channel) => {
+              const isActive = activeChat?.id === channel.id;
+              return (
+                <div
+                  key={channel.id}
+                  className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
+                  onClick={() => chatClicked(channel)}
+                >
+                  <div className={styles.chat_avatar} style={{ background: "transparent", fontSize: "18px" }}>
+                    #
+                  </div>
+                  <div className={styles.chat_content}>
+                    <span className={styles.chat_name}>{channel.name}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Голосовые каналы */}
+          {voiceChannels.length > 0 && (
+            <>
+              <div className={styles.section_title} style={{ marginTop: "16px" }}>
+                <span>Голосовые каналы</span>
+              </div>
+              <div className={styles.chats_list}>
+                {voiceChannels.map((channel) => {
+                  const isActive = activeChat?.id === channel.id;
+                  return (
+                    <div
+                      key={channel.id}
+                      className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
+                      onClick={() => chatClicked(channel)}
+                    >
+                      <div className={styles.chat_avatar} style={{ background: "transparent", fontSize: "18px" }}>
+                        🔊
+                      </div>
+                      <div className={styles.chat_content}>
+                        <span className={styles.chat_name}>{channel.name}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  // ОБЫЧНЫЙ РЕЖИМ (DM & Группы)
+  const directChats = chats?.filter((c) => c.type !== "GROUP" && c.type !== "SERVER_CHANNEL" && c.type !== "SERVER_VOICE") || [];
   const groupChats = chats?.filter((c) => c.type === "GROUP") || [];
 
   return (
     <aside className={styles.chats_wrapper}>
-      {/* Скелетоны при первой загрузке */}
       {isChatsLoading ? (
         <div className={styles.skeleton_container}>
           <div className={styles.loading_hint}>
@@ -102,9 +179,7 @@ export default function ChatList() {
                   return (
                     <div
                       key={chat.id}
-                      className={`${styles.chat_item} ${
-                        isActive ? styles.chat_item_active : ""
-                      }`}
+                      className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
                       onClick={() => chatClicked(chat)}
                     >
                       <div
@@ -119,12 +194,7 @@ export default function ChatList() {
                         </div>
                         {chat.membersCount !== undefined && (
                           <span className={styles.chat_meta}>
-                            {chat.membersCount}{" "}
-                            {chat.membersCount === 1
-                              ? "участник"
-                              : chat.membersCount < 5
-                              ? "участника"
-                              : "участников"}
+                            {chat.membersCount} участников
                           </span>
                         )}
                       </div>
@@ -164,9 +234,7 @@ export default function ChatList() {
                   return (
                     <div
                       key={chat.id}
-                      className={`${styles.chat_item} ${
-                        isActive ? styles.chat_item_active : ""
-                      }`}
+                      className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
                       onClick={() => chatClicked(chat)}
                     >
                       <div
@@ -178,8 +246,15 @@ export default function ChatList() {
                       <div className={styles.chat_content}>
                         <div className={styles.chat_name_row}>
                           <span className={styles.chat_name}>@{username}</span>
+                          {otherMember?.statusEmoji && (
+                            <span style={{ fontSize: "12px", marginLeft: "4px" }}>
+                              {otherMember.statusEmoji}
+                            </span>
+                          )}
                         </div>
-                        <span className={styles.chat_status}>Нажмите, чтобы открыть</span>
+                        <span className={styles.chat_status}>
+                          {otherMember?.customStatus || "Нажмите, чтобы открыть"}
+                        </span>
                       </div>
                     </div>
                   );

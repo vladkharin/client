@@ -91,9 +91,20 @@ export async function unregisterPushToken(token: string) {
   return await f("DELETE", JSON.stringify({ token }), "/push/unregister");
 }
 
-// --- Загрузка изображений (Cloudinary) ---
+// --- Загрузка файлов и изображений (Cloudinary) ---
 
-export async function uploadImage(file: File): Promise<{ success: boolean; url: string; width?: number; height?: number }> {
+export interface UploadResult {
+  success: boolean;
+  url: string;
+  publicId?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileType?: string;
+  width?: number;
+  height?: number;
+}
+
+export async function uploadFile(file: File | Blob, fileName?: string): Promise<UploadResult> {
   const { server } = useGlobalStore.getState();
   const token =
     useUserStore.getState().token ||
@@ -103,14 +114,14 @@ export async function uploadImage(file: File): Promise<{ success: boolean; url: 
 
   const API_URL = server === SERVER_TYPE.PROD ? PROD_API_URL : DEV_API_URL;
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", file, fileName || (file instanceof File ? file.name : "upload.bin"));
 
   const headers: Record<string, string> = {};
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}/upload/image`, {
+  const response = await fetch(`${API_URL}/upload/file`, {
     method: "POST",
     headers,
     body: formData,
@@ -124,4 +135,6 @@ export async function uploadImage(file: File): Promise<{ success: boolean; url: 
   return resData;
 }
 
-
+export async function uploadImage(file: File): Promise<UploadResult> {
+  return uploadFile(file);
+}

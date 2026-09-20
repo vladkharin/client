@@ -6,7 +6,8 @@ import { useChatStore, MessageChat } from "@/store/modules/chat";
 import { useCallStore } from "@/store";
 import styles from "./wrapperMessages.module.css";
 import { REQUESTS } from "@/commands/commands";
-import { uploadImage } from "@/API/routes";
+import { uploadFile } from "@/API/routes";
+import VoiceMessagePlayer from "./VoiceMessagePlayer";
 
 const POPULAR_EMOJIS = [
   "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇",
@@ -16,7 +17,8 @@ const POPULAR_EMOJIS = [
   "🤔", "🤫", "🫡", "🙏", "✌️", "👌", "💪", "🤡", "💀", "👻"
 ];
 
-// Helper for formatting message dates
+const REACTION_LIST = ["👍", "❤️", "🔥", "😂", "😮", "😢"];
+
 function formatTime(dateString?: string) {
   if (!dateString) return "";
   try {
@@ -39,27 +41,38 @@ export default function WrapperMessages() {
   const [isUploading, setIsUploading] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
-  // Phase 1 Features: Reply, Edit, Typing, Emoji
+  // Phase 1-3 States
   const [replyingTo, setReplyingTo] = useState<MessageChat | null>(null);
   const [editingMessage, setEditingMessage] = useState<MessageChat | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingRef = useRef(false);
 
-  // Сброс состояний при смене активного чата
   useEffect(() => {
     setReplyingTo(null);
     setEditingMessage(null);
     setShowEmojiPicker(false);
+    setSearchOpen(false);
+    setSearchQuery("");
     if (inputRef.current) inputRef.current.value = "";
     removeSelectedFile();
+    cancelRecording();
   }, [activeChat?.id]);
 
   const handleBack = () => {
-    setActiveChat(null as any);
+    setActiveChat(null);
   };
 
   const clickToCall = () => {
@@ -74,7 +87,11 @@ export default function WrapperMessages() {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      if (file.type.startsWith("image/")) {
+        setPreviewUrl(URL.createObjectURL(file));
+      } else {
+        setPreviewUrl(null);
+      }
     }
   };
 
@@ -89,7 +106,82 @@ export default function WrapperMessages() {
     }
   };
 
-  // Typing indicator emitter
+  // Voice recording logic
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordDuration(0);
+
+      recordIntervalRef.current = setInterval(() => {
+        setRecordDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Failed to start voice recording:", err);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+    }
+    if (recordIntervalRef.current) {
+      clearInterval(recordIntervalRef.current);
+    }
+    setIsRecording(false);
+    setRecordDuration(0);
+    audioChunksRef.current = [];
+  };
+
+  const finishAndSendRecording = async () => {
+    if (!mediaRecorderRef.current || !activeChat?.id) return;
+
+    const recordedSeconds = recordDuration;
+
+    mediaRecorderRef.current.onstop = async () => {
+      const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+      try {
+        setIsUploading(true);
+        const uploadRes = await uploadFile(audioBlob, "voice_message.webm");
+
+        if (uploadRes?.url) {
+          await sendMessage(REQUESTS.messageSend, {
+            conversationId: activeChat.id,
+            content: "🎙️ Голосовое сообщение",
+            fileUrl: uploadRes.url,
+            fileType: "audio",
+            audioDuration: recordedSeconds,
+            replyToId: replyingTo?.id,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to upload voice message:", err);
+      } finally {
+        setIsUploading(false);
+        setReplyingTo(null);
+      }
+    };
+
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+    if (recordIntervalRef.current) clearInterval(recordIntervalRef.current);
+    setIsRecording(false);
+    setRecordDuration(0);
+  };
+
+  // Typing indicator
   const handleInputChange = () => {
     if (!activeChat?.id) return;
 
@@ -118,14 +210,13 @@ export default function WrapperMessages() {
     }
   };
 
-  // Reply handlers
+  // Actions: Reply, Edit, Delete, Pin, Reactions
   const handleStartReply = (msg: MessageChat) => {
     setEditingMessage(null);
     setReplyingTo(msg);
     inputRef.current?.focus();
   };
 
-  // Edit handlers
   const handleStartEdit = (msg: MessageChat) => {
     setReplyingTo(null);
     setEditingMessage(msg);
@@ -143,7 +234,6 @@ export default function WrapperMessages() {
     }
   };
 
-  // Delete message handler
   const handleDeleteMessage = async (msgId: number) => {
     try {
       await sendMessage(REQUESTS.messageDelete, { messageId: msgId });
@@ -153,7 +243,20 @@ export default function WrapperMessages() {
     }
   };
 
-  // Emoji selection
+  const handleToggleReaction = (msgId: number, emoji: string) => {
+    sendMessage(REQUESTS.reactionToggle, { messageId: msgId, emoji });
+  };
+
+  const handlePinMessage = (msgId: number) => {
+    sendMessage(REQUESTS.messagePin, { messageId: msgId });
+  };
+
+  const handleUnpinMessage = () => {
+    if (activeChat?.id) {
+      sendMessage(REQUESTS.messageUnpin, { conversationId: activeChat.id });
+    }
+  };
+
   const handleSelectEmoji = (emoji: string) => {
     if (inputRef.current) {
       inputRef.current.value = (inputRef.current.value || "") + emoji;
@@ -162,14 +265,13 @@ export default function WrapperMessages() {
     setShowEmojiPicker(false);
   };
 
-  // Send / Edit submit handler
+  // Send message
   const handleSend = async () => {
     const textValue = inputRef.current?.value?.trim() || "";
     if ((!textValue && !selectedFile) || !activeChat?.id || isUploading) return;
 
     stopTypingImmediately();
 
-    // If we are editing an existing message
     if (editingMessage) {
       try {
         setIsUploading(true);
@@ -190,35 +292,43 @@ export default function WrapperMessages() {
       return;
     }
 
-    // Otherwise regular send or reply
     const isTemp = !!activeChat.isTemporary;
     const targetUserId = isTemp ? activeChat.interlocutor?.id : undefined;
     const currentChatId = activeChat.id;
     const currentReplyId = replyingTo?.id;
 
-    let uploadedImageUrl: string | undefined;
+    let uploadedUrl: string | undefined;
+    let uploadedFileType: string | undefined;
+    let uploadedFileName: string | undefined;
+    let uploadedFileSize: number | undefined;
 
     try {
       setIsUploading(true);
 
-      // Загрузка фото в Cloudinary если прикреплено
       if (selectedFile) {
-        const uploadRes = await uploadImage(selectedFile);
+        const uploadRes = await uploadFile(selectedFile);
         if (uploadRes?.url) {
-          uploadedImageUrl = uploadRes.url;
+          uploadedUrl = uploadRes.url;
+          uploadedFileType = uploadRes.fileType;
+          uploadedFileName = uploadRes.fileName;
+          uploadedFileSize = uploadRes.fileSize;
         }
       }
 
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
+      if (inputRef.current) inputRef.current.value = "";
       removeSelectedFile();
       setReplyingTo(null);
+
+      const isImg = uploadedFileType === "image";
 
       const response = await sendMessage(REQUESTS.messageSend, {
         conversationId: currentChatId,
         content: textValue,
-        imageUrl: uploadedImageUrl,
+        imageUrl: isImg ? uploadedUrl : undefined,
+        fileUrl: !isImg ? uploadedUrl : undefined,
+        fileType: uploadedFileType,
+        fileName: uploadedFileName,
+        fileSize: uploadedFileSize,
         replyToId: currentReplyId,
         isTemporary: isTemp,
         targetUserId,
@@ -232,9 +342,15 @@ export default function WrapperMessages() {
           useChatStore.getState().addMessage({
             id: response.id,
             content: response.content,
-            imageUrl: response.imageUrl || uploadedImageUrl,
+            imageUrl: response.imageUrl,
+            fileUrl: response.fileUrl,
+            fileName: response.fileName,
+            fileSize: response.fileSize,
+            fileType: response.fileType,
+            audioDuration: response.audioDuration,
             replyToId: response.replyToId,
             replyTo: response.replyTo,
+            reactions: response.reactions || [],
             conversationId: response.conversationId,
             createdAt: response.createdAt || new Date().toISOString(),
             senderId: user_id || response.senderId,
@@ -249,7 +365,7 @@ export default function WrapperMessages() {
     }
   };
 
-  const isGroup = activeChat?.type === "GROUP";
+  const isGroup = activeChat?.type === "GROUP" || activeChat?.type === "SERVER_CHANNEL";
   const chatTitle = isGroup
     ? activeChat.name || "Групповой чат"
     : activeChat?.interlocutor?.username
@@ -258,18 +374,27 @@ export default function WrapperMessages() {
 
   const currentTypingUsers = (activeChat?.id ? typingUsers[activeChat.id] : []) || [];
 
+  // Filtered messages when searching
+  const displayedMessages = searchQuery.trim()
+    ? (messages || []).filter((m) =>
+        m.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.fileName?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : messages || [];
+
   return (
     <section className={styles.wrapper}>
       {activeChat === null ? (
         <div className={styles.noChatSelected}>
           <div className={styles.noChatIcon}>💬</div>
-          <div className={styles.noChatTitle}>Выберите диалог</div>
+          <div className={styles.noChatTitle}>Выберите диалог или сервер</div>
           <div className={styles.noChatDesc}>
-            Выберите чат слева или найдите новых собеседников через поиск.
+            Выберите чат слева, найдите собеседников через поиск или выберите сервер сообщества.
           </div>
         </div>
       ) : (
         <>
+          {/* Верхняя панель чата */}
           <div className={styles.upper_menu}>
             <div className={styles.left_side}>
               <button className={styles.backBtn} onClick={handleBack} title="Назад к списку чатов">
@@ -285,15 +410,60 @@ export default function WrapperMessages() {
                     {activeChat.membersCount || 0} участников
                   </span>
                 ) : (
-                  <span className={styles.chatSubtitleOnline}>онлайн</span>
+                  <span className={styles.chatSubtitleOnline}>
+                    {activeChat?.interlocutor?.statusEmoji ? `${activeChat.interlocutor.statusEmoji} ` : ""}
+                    {activeChat?.interlocutor?.customStatus || "онлайн"}
+                  </span>
                 )}
               </div>
             </div>
-            <button className={styles.callBtn} onClick={clickToCall} title="Начать аудиозвонок">
-              <span>📞</span>
-              <span>Позвонить</span>
-            </button>
+
+            <div className={styles.headerActions}>
+              <button
+                className={styles.iconBtn}
+                onClick={() => setSearchOpen(!searchOpen)}
+                title="Поиск в чате (Ctrl+F)"
+              >
+                🔍
+              </button>
+              <button className={styles.callBtn} onClick={clickToCall} title="Начать звонок">
+                <span>📞</span>
+                <span>Позвонить</span>
+              </button>
+            </div>
           </div>
+
+          {/* Строка поиска по чату */}
+          {searchOpen && (
+            <div className={styles.search_bar}>
+              <input
+                type="text"
+                className={styles.search_input}
+                placeholder="Поиск по сообщениям..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              <button className={styles.search_close} onClick={() => { setSearchOpen(false); setSearchQuery(""); }}>
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Плашка закрепленного сообщения */}
+          {activeChat?.pinnedMessage && (
+            <div className={styles.pinned_banner}>
+              <div className={styles.pinned_content}>
+                <span className={styles.pinned_author}>
+                  📌 Закреплено от @{activeChat.pinnedMessage.sender?.username || "пользователя"}
+                </span>
+                <span className={styles.pinned_text}>{activeChat.pinnedMessage.content}</span>
+              </div>
+              <button className={styles.pinned_unpin} onClick={handleUnpinMessage} title="Открепить">
+                ✕
+              </button>
+            </div>
+          )}
 
           <div className={styles.wrapper_messages}>
             <div className={styles.scroller_messages}>
@@ -302,10 +472,20 @@ export default function WrapperMessages() {
                   <div className={styles.messages_spinner} />
                   <span>Загрузка сообщений...</span>
                 </div>
-              ) : messages && messages.length > 0 ? (
-                messages.map((message) => {
+              ) : displayedMessages.length > 0 ? (
+                displayedMessages.map((message) => {
                   const isSelf = message.sender.id === user_id;
                   const time = formatTime(message.createdAt);
+
+                  // Group reactions by emoji
+                  const reactionMap: Record<string, { count: number; userIds: number[] }> = {};
+                  (message.reactions || []).forEach((r) => {
+                    if (!reactionMap[r.emoji]) {
+                      reactionMap[r.emoji] = { count: 0, userIds: [] };
+                    }
+                    reactionMap[r.emoji].count += 1;
+                    reactionMap[r.emoji].userIds.push(r.userId);
+                  });
 
                   return (
                     <div
@@ -317,14 +497,31 @@ export default function WrapperMessages() {
                           isSelf ? styles.bubble_self : styles.bubble_other
                         }`}
                       >
-                        {/* Действия над сообщением при наведении */}
+                        {/* Действия над сообщением */}
                         <div className={styles.message_actions}>
+                          {REACTION_LIST.map((emoji) => (
+                            <button
+                              key={emoji}
+                              className={styles.action_btn}
+                              onClick={() => handleToggleReaction(message.id, emoji)}
+                              title={`Реакция ${emoji}`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
                           <button
                             className={styles.action_btn}
                             onClick={() => handleStartReply(message)}
                             title="Ответить"
                           >
                             ↩️
+                          </button>
+                          <button
+                            className={styles.action_btn}
+                            onClick={() => handlePinMessage(message.id)}
+                            title="Закрепить"
+                          >
+                            📌
                           </button>
                           {isSelf && (
                             <>
@@ -353,7 +550,7 @@ export default function WrapperMessages() {
                               {message.replyTo.sender?.username || "Пользователь"}
                             </span>
                             <span className={styles.quote_text}>
-                              {message.replyTo.content || "📷 Фотография"}
+                              {message.replyTo.content || "Медиафайл"}
                             </span>
                           </div>
                         )}
@@ -364,6 +561,7 @@ export default function WrapperMessages() {
                           </div>
                         )}
 
+                        {/* Изображение */}
                         {message.imageUrl && (
                           <div
                             className={styles.message_image_container}
@@ -378,8 +576,61 @@ export default function WrapperMessages() {
                           </div>
                         )}
 
-                        {message.content && message.content !== "📷 Фотография" && (
-                          <div className={styles.message_text}>{message.content}</div>
+                        {/* Голосовое сообщение */}
+                        {message.fileType === "audio" && message.fileUrl && (
+                          <VoiceMessagePlayer src={message.fileUrl} duration={message.audioDuration} />
+                        )}
+
+                        {/* Документ / файл */}
+                        {message.fileUrl && message.fileType !== "audio" && (
+                          <div className={styles.file_card}>
+                            <div className={styles.file_icon}>
+                              {message.fileType === "video" ? "🎥" : "📄"}
+                            </div>
+                            <div className={styles.file_details}>
+                              <span className={styles.file_title}>{message.fileName || "Файл"}</span>
+                              <span className={styles.file_size}>
+                                {message.fileSize ? (message.fileSize / 1024).toFixed(1) + " КБ" : ""}
+                              </span>
+                            </div>
+                            <a
+                              href={message.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              download={message.fileName}
+                              className={styles.file_download_btn}
+                              title="Скачать"
+                            >
+                              ⬇️
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Текст */}
+                        {message.content &&
+                          message.content !== "📷 Фотография" &&
+                          message.content !== "🎙️ Голосовое сообщение" && (
+                            <div className={styles.message_text}>{message.content}</div>
+                          )}
+
+                        {/* Реакции под сообщением */}
+                        {Object.keys(reactionMap).length > 0 && (
+                          <div className={styles.reactions_container}>
+                            {Object.entries(reactionMap).map(([emoji, data]) => {
+                              const hasReacted = data.userIds.includes(user_id || 0);
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  className={`${styles.reaction_chip} ${hasReacted ? styles.reaction_chip_active : ""}`}
+                                  onClick={() => handleToggleReaction(message.id, emoji)}
+                                >
+                                  <span>{emoji}</span>
+                                  <span className={styles.reaction_chip_count}>{data.count}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         )}
 
                         <div className={styles.message_footer}>
@@ -394,9 +645,13 @@ export default function WrapperMessages() {
               ) : (
                 <div className={styles.messages_empty}>
                   <div className={styles.messages_empty_icon}>✨</div>
-                  <div className={styles.messages_empty_title}>Здесь пока пусто</div>
+                  <div className={styles.messages_empty_title}>
+                    {searchQuery ? "Ничего не найдено" : "Здесь пока пусто"}
+                  </div>
                   <div className={styles.messages_empty_desc}>
-                    Напишите первое сообщение или отправьте фото!
+                    {searchQuery
+                      ? "Попробуйте изменить поисковый запрос."
+                      : "Напишите первое сообщение, отправьте файл или запишите голосовое!"}
                   </div>
                 </div>
               )}
@@ -421,10 +676,12 @@ export default function WrapperMessages() {
               <div className={styles.context_banner}>
                 <div className={styles.context_info}>
                   <span className={styles.context_title}>
-                    {editingMessage ? "Редактирование сообщения" : `Ответ для ${replyingTo?.sender?.username || "пользователя"}`}
+                    {editingMessage
+                      ? "Редактирование сообщения"
+                      : `Ответ для @${replyingTo?.sender?.username || "пользователя"}`}
                   </span>
                   <span className={styles.context_text}>
-                    {editingMessage ? editingMessage.content : (replyingTo?.content || "📷 Фотография")}
+                    {editingMessage ? editingMessage.content : (replyingTo?.content || "Медиафайл")}
                   </span>
                 </div>
                 <button className={styles.context_close} onClick={cancelContextAction} title="Отменить">
@@ -433,7 +690,7 @@ export default function WrapperMessages() {
               </div>
             )}
 
-            {/* Панель предпросмотра выбранного изображения */}
+            {/* Панель предпросмотра изображения */}
             {previewUrl && (
               <div className={styles.image_preview_bar}>
                 <img src={previewUrl} alt="Preview" className={styles.preview_thumb} />
@@ -443,7 +700,7 @@ export default function WrapperMessages() {
                     {selectedFile ? (selectedFile.size / 1024).toFixed(1) + " КБ" : ""}
                   </span>
                 </div>
-                <button className={styles.preview_remove} onClick={removeSelectedFile} title="Удалить фото">
+                <button className={styles.preview_remove} onClick={removeSelectedFile} title="Удалить">
                   ✕
                 </button>
               </div>
@@ -465,64 +722,93 @@ export default function WrapperMessages() {
               </div>
             )}
 
-            {/* Инпут и кнопки прикрепления / отправки */}
-            <div className={styles.input_container}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={handleFileChange}
-              />
-              <button
-                className={styles.attach_btn}
-                onClick={() => fileInputRef.current?.click()}
-                title="Прикрепить изображение"
-                type="button"
-              >
-                📷
-              </button>
+            {/* Панель записи голосового сообщения */}
+            {isRecording ? (
+              <div className={styles.recording_bar}>
+                <div className={styles.recording_indicator}>
+                  <div className={styles.recording_dot} />
+                  <span className={styles.recording_timer}>
+                    {Math.floor(recordDuration / 60)}:{(recordDuration % 60).toString().padStart(2, "0")}
+                  </span>
+                  <span>Запись голосового...</span>
+                </div>
+                <div className={styles.recording_actions}>
+                  <button className={styles.recording_cancel_btn} onClick={cancelRecording}>
+                    Отмена
+                  </button>
+                  <button className={styles.recording_send_btn} onClick={finishAndSendRecording}>
+                    Отправить ✈️
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Обычная панель ввода */
+              <div className={styles.input_container}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+                <button
+                  className={styles.attach_btn}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Прикрепить файл или фото"
+                  type="button"
+                >
+                  📎
+                </button>
 
-              <button
-                className={styles.attach_btn}
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                title="Вставить эмодзи"
-                type="button"
-              >
-                😊
-              </button>
+                <button
+                  className={styles.attach_btn}
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  title="Вставить эмодзи"
+                  type="button"
+                >
+                  😊
+                </button>
 
-              <input
-                ref={inputRef}
-                type="text"
-                className={styles.text_input}
-                placeholder={
-                  editingMessage
-                    ? "Редактируйте сообщение..."
-                    : isUploading
-                    ? "Загрузка изображения..."
-                    : "Напишите сообщение..."
-                }
-                disabled={isUploading}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSend();
-                  } else if (e.key === "Escape" && (replyingTo || editingMessage)) {
-                    cancelContextAction();
+                <button
+                  className={styles.attach_btn}
+                  onClick={startRecording}
+                  title="Записать голосовое сообщение"
+                  type="button"
+                >
+                  🎙️
+                </button>
+
+                <input
+                  ref={inputRef}
+                  type="text"
+                  className={styles.text_input}
+                  placeholder={
+                    editingMessage
+                      ? "Редактируйте сообщение..."
+                      : isUploading
+                      ? "Загрузка файла..."
+                      : "Напишите сообщение (или /ai, /summary)..."
                   }
-                }}
-              />
+                  disabled={isUploading}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSend();
+                    } else if (e.key === "Escape" && (replyingTo || editingMessage)) {
+                      cancelContextAction();
+                    }
+                  }}
+                />
 
-              <button
-                className={styles.send_button}
-                onClick={handleSend}
-                disabled={isUploading}
-                title="Отправить сообщение"
-              >
-                {isUploading ? "..." : editingMessage ? "Сохранить" : "Отправить"}
-              </button>
-            </div>
+                <button
+                  className={styles.send_button}
+                  onClick={handleSend}
+                  disabled={isUploading}
+                  title="Отправить"
+                >
+                  {isUploading ? "..." : editingMessage ? "Сохранить" : "Отправить"}
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
