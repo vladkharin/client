@@ -60,6 +60,32 @@ function formatTime(dateString?: string) {
   }
 }
 
+function formatLastSeen(lastSeenAt?: string | Date | null) {
+  if (!lastSeenAt) return "не в сети";
+  const date = new Date(lastSeenAt);
+  if (isNaN(date.getTime())) return "не в сети";
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMinutes < 1) return "был(а) только что";
+  if (diffMinutes < 60) return `был(а) ${diffMinutes} мин. назад`;
+  if (diffHours < 24 && date.getDate() === now.getDate()) {
+    const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return `был(а) сегодня в ${timeStr}`;
+  }
+  if (diffDays === 1 || (diffHours < 48 && date.getDate() === now.getDate() - 1)) {
+    const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return `был(а) вчера в ${timeStr}`;
+  }
+  const dateStr = date.toLocaleDateString([], { day: "numeric", month: "short" });
+  const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `был(а) ${dateStr} в ${timeStr}`;
+}
+
 export default function WrapperMessages() {
   const {
     activeChat,
@@ -74,6 +100,7 @@ export default function WrapperMessages() {
     deleteMessage,
     isMemberListOpen,
     toggleMemberList,
+    onlineUserIds,
   } = useChatStore();
   const { sendMessage } = useSocketStore();
   const {
@@ -573,10 +600,28 @@ export default function WrapperMessages() {
                     {activeChat.membersCount || 0} участников
                   </span>
                 ) : (
-                  <span className={styles.chatSubtitleOnline}>
-                    {activeChat?.interlocutor?.statusEmoji ? `${activeChat.interlocutor.statusEmoji} ` : ""}
-                    {activeChat?.interlocutor?.customStatus || "онлайн"}
-                  </span>
+                  (() => {
+                    const isOnline = activeChat?.interlocutor?.id
+                      ? (onlineUserIds.includes(activeChat.interlocutor.id) || !!activeChat.interlocutor.isOnline)
+                      : false;
+
+                    if (isOnline) {
+                      return (
+                        <span className={styles.chatSubtitleOnline}>
+                          <span className={styles.onlineDot} />
+                          {activeChat?.interlocutor?.statusEmoji ? `${activeChat.interlocutor.statusEmoji} ` : ""}
+                          {activeChat?.interlocutor?.customStatus || "в сети"}
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <span className={styles.chatSubtitleOffline}>
+                        <span className={styles.offlineDot} />
+                        {formatLastSeen(activeChat?.interlocutor?.lastSeenAt)}
+                      </span>
+                    );
+                  })()
                 )}
               </div>
             </div>

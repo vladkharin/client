@@ -15,6 +15,7 @@ interface ServerMemberItem {
   customStatus?: string | null;
   statusEmoji?: string | null;
   lastSeenAt?: string | null;
+  isOnline?: boolean;
   role: "OWNER" | "ADMIN" | "MEMBER";
 }
 
@@ -41,7 +42,7 @@ function getInitials(name?: string) {
 }
 
 export default function MemberList() {
-  const { activeServer, activeChat, isMemberListOpen, findOrCreateDirectChat, setActiveChat } = useChatStore();
+  const { activeServer, activeChat, isMemberListOpen, findOrCreateDirectChat, setActiveChat, onlineUserIds } = useChatStore();
   const { sendMessage } = useSocketStore();
   const { user_id } = useUserStore();
   const { setOutgoing, setConversationId } = useCallStore();
@@ -124,6 +125,10 @@ export default function MemberList() {
     setSelectedMember(null);
   };
 
+  const isUserOnline = (m: ServerMemberItem) => {
+    return m.userId === user_id || (m.userId ? onlineUserIds.includes(m.userId) : false) || !!m.isOnline;
+  };
+
   // Group members into roles / categories
   const owners = members.filter((m) => m.role === "OWNER");
   const admins = members.filter((m) => m.role === "ADMIN");
@@ -151,6 +156,7 @@ export default function MemberList() {
                     key={member.id || member.userId}
                     member={member}
                     isSelf={member.userId === user_id}
+                    isOnline={isUserOnline(member)}
                     onClick={(e) => handleMemberClick(member, e)}
                   />
                 ))}
@@ -169,6 +175,7 @@ export default function MemberList() {
                     key={member.id || member.userId}
                     member={member}
                     isSelf={member.userId === user_id}
+                    isOnline={isUserOnline(member)}
                     onClick={(e) => handleMemberClick(member, e)}
                   />
                 ))}
@@ -179,7 +186,7 @@ export default function MemberList() {
             {regularMembers.length > 0 && (
               <div className={styles.group}>
                 <div className={styles.groupHeader}>
-                  <span>В СЕТИ</span>
+                  <span>УЧАСТНИКИ</span>
                   <span className={styles.groupCount}>— {regularMembers.length}</span>
                 </div>
                 {regularMembers.map((member) => (
@@ -187,6 +194,7 @@ export default function MemberList() {
                     key={member.id || member.userId}
                     member={member}
                     isSelf={member.userId === user_id}
+                    isOnline={isUserOnline(member)}
                     onClick={(e) => handleMemberClick(member, e)}
                   />
                 ))}
@@ -213,7 +221,7 @@ export default function MemberList() {
               style={{ background: getAvatarGradient(selectedMember.username) }}
             >
               {getInitials(selectedMember.name || selectedMember.username)}
-              <span className={styles.onlineDot} />
+              <span className={isUserOnline(selectedMember) ? styles.statusIndicator : styles.offlineIndicator} />
             </div>
 
             <div className={styles.popoverInfo}>
@@ -268,10 +276,12 @@ export default function MemberList() {
 function MemberRow({
   member,
   isSelf,
+  isOnline,
   onClick,
 }: {
   member: ServerMemberItem;
   isSelf: boolean;
+  isOnline: boolean;
   onClick: (e: React.MouseEvent) => void;
 }) {
   const displayName = member.name
@@ -279,7 +289,7 @@ function MemberRow({
     : member.username;
 
   return (
-    <div className={styles.memberRow} onClick={onClick}>
+    <div className={styles.memberRow} onClick={onClick} style={{ opacity: isOnline ? 1 : 0.65 }}>
       <div className={styles.avatarWrapper}>
         <div
           className={styles.avatar}
@@ -287,7 +297,7 @@ function MemberRow({
         >
           {getInitials(displayName)}
         </div>
-        <span className={styles.statusIndicator} />
+        <span className={isOnline ? styles.statusIndicator : styles.offlineIndicator} />
       </div>
 
       <div className={styles.memberInfo}>

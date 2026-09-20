@@ -104,14 +104,38 @@
 }
 
 .chatSubtitle,
-.chatSubtitleOnline {
+.chatSubtitleOnline,
+.chatSubtitleOffline {
   font-size: 12px;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .chatSubtitleOnline {
   color: #22c55e;
   font-weight: 500;
+}
+
+.chatSubtitleOffline {
+  color: var(--text-muted);
+}
+
+.onlineDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-block;
+}
+
+.offlineDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #64748b;
+  display: inline-block;
 }
 
 .headerActions {

@@ -26,6 +26,7 @@ export interface Interlocutor {
   customStatus?: string | null;
   statusEmoji?: string | null;
   lastSeenAt?: string | null;
+  isOnline?: boolean;
 }
 
 export interface LastMessage {

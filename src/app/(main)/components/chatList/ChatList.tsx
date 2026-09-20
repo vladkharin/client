@@ -52,6 +52,7 @@ export default function ChatList() {
     setMessages,
     isChatsLoading,
     setIsMessagesLoading,
+    onlineUserIds,
   } = useChatStore();
 
   const { user_id, username: currentUsername, setProfileModalOpen } = useUserStore();
@@ -648,6 +649,9 @@ export default function ChatList() {
                   const otherMember = chat.interlocutor;
                   const isActive = activeChat?.id === chat.id;
                   const username = otherMember?.username || "пользователь";
+                  const isOnline = otherMember?.id
+                    ? (onlineUserIds.includes(otherMember.id) || !!otherMember.isOnline)
+                    : false;
 
                   return (
                     <div
@@ -655,11 +659,14 @@ export default function ChatList() {
                       className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
                       onClick={() => chatClicked(chat)}
                     >
-                      <div
-                        className={styles.chat_avatar}
-                        style={{ background: getAvatarGradient(username) }}
-                      >
-                        {getInitials(username)}
+                      <div className={styles.chat_avatar_wrapper}>
+                        <div
+                          className={styles.chat_avatar}
+                          style={{ background: getAvatarGradient(username) }}
+                        >
+                          {getInitials(username)}
+                        </div>
+                        {isOnline && <span className={styles.online_badge} />}
                       </div>
                       <div className={styles.chat_content}>
                         <div className={styles.chat_name_row}>
@@ -671,7 +678,7 @@ export default function ChatList() {
                           )}
                         </div>
                         <span className={styles.chat_status}>
-                          {otherMember?.customStatus || "Нажмите, чтобы открыть"}
+                          {otherMember?.customStatus || (isOnline ? "в сети" : "не в сети")}
                         </span>
                       </div>
                     </div>

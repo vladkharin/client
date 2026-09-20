@@ -22,12 +22,33 @@ describe("chatStore", () => {
         type: "DIRECT",
         updatedAt: new Date().toISOString(),
         lastMessage: null,
-        interlocutor: { id: 2, username: "alice", name: "Alice", surname: null },
+        interlocutor: { id: 2, username: "alice", name: "Alice", surname: null, isOnline: false },
       },
     ];
 
     useChatStore.getState().setChats(mockChats);
     expect(useChatStore.getState().chats).toEqual(mockChats);
+  });
+
+  it("should update online users correctly", () => {
+    const mockChats: CHAT[] = [
+      {
+        id: 1,
+        type: "DIRECT",
+        updatedAt: new Date().toISOString(),
+        lastMessage: null,
+        interlocutor: { id: 2, username: "alice", name: "Alice", surname: null, isOnline: false },
+      },
+    ];
+
+    useChatStore.getState().setChats(mockChats);
+    useChatStore.getState().setOnlineUserIds([2]);
+    expect(useChatStore.getState().onlineUserIds).toEqual([2]);
+    expect(useChatStore.getState().chats?.[0].interlocutor?.isOnline).toBe(true);
+
+    useChatStore.getState().setUserOnlineStatus(2, false, new Date().toISOString());
+    expect(useChatStore.getState().onlineUserIds).toEqual([]);
+    expect(useChatStore.getState().chats?.[0].interlocutor?.isOnline).toBe(false);
   });
 
   it("should set active chat and manage messages", () => {

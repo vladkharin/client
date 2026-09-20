@@ -82,6 +82,14 @@
   border-radius: 0 4px 4px 0;
 }
 
+.chat_avatar_wrapper {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  flex-shrink: 0;
+}
+
 .chat_avatar {
   width: 40px;
   height: 40px;
@@ -95,6 +103,17 @@
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
+}
+
+.online_badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  border: 2px solid var(--bg-surface, #0f172a);
 }
 
 .chat_content {

@@ -66,6 +66,7 @@ interface CHAT_STATE {
   createServerModalOpen: boolean;
   isMemberListOpen: boolean;
   typingUsers: Record<number, string[]>;
+  onlineUserIds: number[];
 
   setIsChatsLoading: (loading: boolean) => void;
   setIsMessagesLoading: (loading: boolean) => void;
@@ -73,6 +74,8 @@ interface CHAT_STATE {
   setCreateServerModalOpen: (open: boolean) => void;
   setIsMemberListOpen: (open: boolean) => void;
   toggleMemberList: () => void;
+  setOnlineUserIds: (ids: number[]) => void;
+  setUserOnlineStatus: (userId: number, isOnline: boolean, lastSeenAt?: string) => void;
   setChats: (chats: CHAT[]) => void;
   addChat: (chat: CHAT) => void;
   setActiveChat: (chat: CHAT | null) => void;
@@ -118,6 +121,7 @@ export const useChatStore = create<CHAT_STATE>()(
       createServerModalOpen: false,
       isMemberListOpen: true,
       typingUsers: {},
+      onlineUserIds: [],
 
       setIsChatsLoading: (isChatsLoading: boolean) => set({ isChatsLoading }),
       setIsMessagesLoading: (isMessagesLoading: boolean) => set({ isMessagesLoading }),
@@ -125,7 +129,95 @@ export const useChatStore = create<CHAT_STATE>()(
       setCreateServerModalOpen: (open: boolean) => set({ createServerModalOpen: open }),
       setIsMemberListOpen: (open: boolean) => set({ isMemberListOpen: open }),
       toggleMemberList: () => set((state) => ({ isMemberListOpen: !state.isMemberListOpen })),
-      setChats: (chats: CHAT[]) => set({ chats, isChatsLoading: false }),
+      setOnlineUserIds: (ids: number[]) =>
+        set((state) => {
+          const onlineSet = new Set(ids);
+          const updatedChats =
+            state.chats?.map((c) => {
+              if (c.interlocutor) {
+                return {
+                  ...c,
+                  interlocutor: {
+                    ...c.interlocutor,
+                    isOnline: onlineSet.has(c.interlocutor.id),
+                  },
+                };
+              }
+              return c;
+            }) || null;
+
+          const updatedActiveChat = state.activeChat?.interlocutor
+            ? {
+                ...state.activeChat,
+                interlocutor: {
+                  ...state.activeChat.interlocutor,
+                  isOnline: onlineSet.has(state.activeChat.interlocutor.id),
+                },
+              }
+            : state.activeChat;
+
+          return {
+            onlineUserIds: ids,
+            chats: updatedChats,
+            activeChat: updatedActiveChat,
+          };
+        }),
+      setUserOnlineStatus: (userId: number, isOnline: boolean, lastSeenAt?: string) =>
+        set((state) => {
+          const onlineUserIds = isOnline
+            ? Array.from(new Set([...state.onlineUserIds, userId]))
+            : state.onlineUserIds.filter((id) => id !== userId);
+
+          const updatedChats =
+            state.chats?.map((c) => {
+              if (c.interlocutor && c.interlocutor.id === userId) {
+                return {
+                  ...c,
+                  interlocutor: {
+                    ...c.interlocutor,
+                    isOnline,
+                    ...(lastSeenAt && { lastSeenAt }),
+                  },
+                };
+              }
+              return c;
+            }) || null;
+
+          const updatedActiveChat =
+            state.activeChat?.interlocutor && state.activeChat.interlocutor.id === userId
+              ? {
+                  ...state.activeChat,
+                  interlocutor: {
+                    ...state.activeChat.interlocutor,
+                    isOnline,
+                    ...(lastSeenAt && { lastSeenAt }),
+                  },
+                }
+              : state.activeChat;
+
+          return {
+            onlineUserIds,
+            chats: updatedChats,
+            activeChat: updatedActiveChat,
+          };
+        }),
+      setChats: (chats: CHAT[]) =>
+        set((state) => {
+          const onlineSet = new Set(state.onlineUserIds);
+          const enhancedChats = chats.map((c) => {
+            if (c.interlocutor) {
+              return {
+                ...c,
+                interlocutor: {
+                  ...c.interlocutor,
+                  isOnline: c.interlocutor.isOnline ?? onlineSet.has(c.interlocutor.id),
+                },
+              };
+            }
+            return c;
+          });
+          return { chats: enhancedChats, isChatsLoading: false };
+        }),
       setActiveChat: (chat: CHAT | null) =>
         set((state) => ({
           activeChat: chat,

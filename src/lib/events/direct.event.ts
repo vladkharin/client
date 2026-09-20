@@ -21,4 +21,18 @@ export const DirectEvents = (socket: Socket) => {
 
     onNewChat(data);
   });
+
+  socket.off("presence:online_users");
+  socket.on("presence:online_users", (userIds: number[]) => {
+    if (Array.isArray(userIds)) {
+      useChatStore.getState().setOnlineUserIds(userIds);
+    }
+  });
+
+  socket.off(NOTIFICATIONS.userStatus);
+  socket.on(NOTIFICATIONS.userStatus, (data: { userId: number; isOnline?: boolean; lastSeenAt?: string }) => {
+    if (data && typeof data.userId === "number") {
+      useChatStore.getState().setUserOnlineStatus(data.userId, !!data.isOnline, data.lastSeenAt);
+    }
+  });
 };

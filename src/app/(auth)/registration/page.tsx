@@ -85,6 +85,15 @@ export default function RegistrationPage() {
     event.preventDefault();
     setGeneralError(null);
     const errors: Record<string, string> = {};
+    const usernameRegex = /^[a-zA-Z0-9_.-]+$/;
+    const trimmedUsername = formState.username.trim();
+    if (!trimmedUsername) {
+      errors.username = "Никнейм обязателен для заполнения";
+    } else if (trimmedUsername.length < 3 || trimmedUsername.length > 32) {
+      errors.username = "Никнейм должен содержать от 3 до 32 символов";
+    } else if (!usernameRegex.test(trimmedUsername)) {
+      errors.username = "Никнейм может содержать только латинские буквы (a-z), цифры и символы _ . -";
+    }
 
     if (formState.password !== formState.password_confirmed) {
       errors.password_confirmed = "Пароли не совпадают";

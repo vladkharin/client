@@ -291,8 +291,20 @@ export default function ProfileModal() {
     const trimmedUsername = username.trim();
     const trimmedEmail = email.trim();
 
+    const usernameRegex = /^[a-zA-Z0-9_.-]+$/;
+
     if (!trimmedUsername) {
       setErrorMessage("Никнейм не может быть пустым");
+      return;
+    }
+
+    if (trimmedUsername.length < 3 || trimmedUsername.length > 32) {
+      setErrorMessage("Никнейм должен содержать от 3 до 32 символов");
+      return;
+    }
+
+    if (!usernameRegex.test(trimmedUsername)) {
+      setErrorMessage("Никнейм может содержать только латинские буквы (a-z), цифры и символы _ . -");
       return;
     }
 
