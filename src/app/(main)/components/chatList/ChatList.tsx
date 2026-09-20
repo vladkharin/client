@@ -294,34 +294,78 @@ export default function ChatList() {
 
           <div
             style={{
-              padding: "4px 14px 10px 14px",
-              fontSize: "11px",
-              color: "var(--text-muted)",
+              padding: "8px 12px",
+              margin: "0 4px 8px 4px",
+              fontSize: "12px",
+              background: "rgba(249, 115, 22, 0.08)",
+              border: "1px dashed rgba(249, 115, 22, 0.3)",
+              borderRadius: "10px",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              flexDirection: "column",
+              gap: "6px",
             }}
           >
-            <span>
-              Инвайт: <code style={{ color: "var(--primary)" }}>{activeServer.inviteCode}</code>
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard?.writeText(activeServer.inviteCode);
-                alert("Инвайт-код скопирован в буфер обмена!");
-              }}
-              style={{
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "12px",
-              }}
-              title="Скопировать инвайт"
-            >
-              📋
-            </button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "12px" }}>
+                🔗 Пригласить на сервер:
+              </span>
+              <span style={{ fontSize: "11px", color: "var(--primary)", fontWeight: 700 }}>
+                {activeServer.inviteCode}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/invite/${activeServer.inviteCode}`;
+                  navigator.clipboard?.writeText(url);
+                  alert("✅ Ссылка-приглашение скопирована в буфер обмена:\n" + url);
+                }}
+                style={{
+                  flex: 1,
+                  background: "var(--primary)",
+                  border: "none",
+                  color: "#ffffff",
+                  borderRadius: "6px",
+                  padding: "6px 8px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+                title="Скопировать полную ссылку"
+              >
+                📋 Скопировать ссылку
+              </button>
+              {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${window.location.origin}/invite/${activeServer.inviteCode}`;
+                    navigator
+                      .share({
+                        title: `Присоединяйся к серверу ${activeServer.name} в CraftHive!`,
+                        text: `Приглашаю тебя на сервер "${activeServer.name}" в CraftHive!`,
+                        url,
+                      })
+                      .catch(() => {});
+                  }}
+                  style={{
+                    background: "var(--bg-element)",
+                    border: "1px solid var(--border-color)",
+                    color: "var(--text-primary)",
+                    borderRadius: "6px",
+                    padding: "6px 10px",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                  }}
+                  title="Поделиться через приложение"
+                >
+                  📤
+                </button>
+              )}
+            </div>
           </div>
+
 
           {/* Текстовые каналы */}
           <div className={styles.section_title} style={{ marginTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

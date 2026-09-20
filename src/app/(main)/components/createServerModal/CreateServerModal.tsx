@@ -45,13 +45,14 @@ export default function CreateServerModal() {
 
   const handleJoin = async (e: FormEvent) => {
     e.preventDefault();
-    if (!inviteCode.trim()) return;
+    const cleanCode = inviteCode.replace(/.*\/invite\//, "").trim();
+    if (!cleanCode) return;
 
     try {
       setIsLoading(true);
       setError(null);
       const res: any = await sendMessage(REQUESTS.serverJoin, {
-        inviteCode: inviteCode.trim(),
+        inviteCode: cleanCode,
       });
 
       const serverData = res?.response ?? res;
@@ -65,6 +66,7 @@ export default function CreateServerModal() {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className={styles.backdrop} onClick={closeModal}>
@@ -120,16 +122,17 @@ export default function CreateServerModal() {
         ) : (
           <form onSubmit={handleJoin} className={styles.form}>
             <div className={styles.inputGroup}>
-              <label className={styles.label}>Код приглашения</label>
+              <label className={styles.label}>Код или ссылка-приглашение</label>
               <input
                 className={styles.input}
                 type="text"
-                placeholder="Вставьте код приглашения..."
+                placeholder="https://.../invite/ABCDEF или код"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
                 required
               />
             </div>
+
             <div className={styles.footer}>
               <button type="button" className={styles.cancelBtn} onClick={closeModal}>
                 Отмена
