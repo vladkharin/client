@@ -3,8 +3,15 @@
 import { useChatStore } from "@/store/modules/chat";
 import styles from "./chatList.module.css";
 import { CHAT } from "@/types/types";
-import { useSocketStore, useUserStore } from "@/store";
+import { useSocketStore, useUserStore, useCallStore } from "@/store";
 import { REQUESTS } from "@/commands/commands";
+import {
+  joinMediasoupRoom,
+  leaveMediasoupRoom,
+  toggleMuteMic,
+  toggleCamera,
+  toggleScreenShare,
+} from "@/lib/mediasoupManager";
 
 function getAvatarGradient(str: string = "") {
   const gradients = [
@@ -43,6 +50,13 @@ export default function ChatList() {
   } = useChatStore();
   const { user_id } = useUserStore();
   const { sendMessage } = useSocketStore();
+  const {
+    inCall,
+    conversationId: callConvId,
+    isMicMuted,
+    isCameraActive,
+    isScreenActive,
+  } = useCallStore();
 
   const isOwner = activeServer?.ownerId === user_id || activeServer?.role === "OWNER";
 
@@ -108,6 +122,15 @@ export default function ChatList() {
   const chatClicked = async (chat: CHAT) => {
     setActiveChat(chat);
 
+    // Если это голосовой канал — автоматически подключаемся к нему по клику (Discord style)
+    if (chat?.type === "SERVER_VOICE") {
+      const currentCallId = useCallStore.getState().conversationId;
+      const isInCall = useCallStore.getState().inCall;
+      if (!isInCall || currentCallId !== chat.id) {
+        joinMediasoupRoom(chat.id).catch(console.error);
+      }
+    }
+
     if (chat?.isTemporary) {
       setMessages([]);
       return;
@@ -129,6 +152,59 @@ export default function ChatList() {
       setIsMessagesLoading(false);
     }
   };
+
+  const connectedChannelName =
+    servers?.flatMap((s) => s.channels || []).find((c) => c.id === callConvId)?.name ||
+    chats?.find((c) => c.id === callConvId)?.name ||
+    (callConvId ? `Комната #${callConvId}` : "Голосовой канал");
+
+  const voiceConnectedWidget = inCall ? (
+    <div className={styles.voiceConnectedCard}>
+      <div className={styles.voiceConnectedHeader}>
+        <div className={styles.voiceConnectedPulse} />
+        <div className={styles.voiceConnectedInfo}>
+          <span className={styles.voiceConnectedStatus}>Голос подключен</span>
+          <span className={styles.voiceConnectedChannel}>
+            🔊 {connectedChannelName}
+          </span>
+        </div>
+        <button
+          type="button"
+          className={styles.voiceDisconnectBtn}
+          onClick={leaveMediasoupRoom}
+          title="Отключиться от голосового канала"
+        >
+          ✕
+        </button>
+      </div>
+      <div className={styles.voiceQuickActions}>
+        <button
+          type="button"
+          className={`${styles.voiceActionBtn} ${isMicMuted ? styles.voiceActionBtnActive : ""}`}
+          onClick={toggleMuteMic}
+          title={isMicMuted ? "Включить микрофон" : "Заглушить микрофон"}
+        >
+          {isMicMuted ? "🔇" : "🎙️"}
+        </button>
+        <button
+          type="button"
+          className={`${styles.voiceActionBtn} ${isCameraActive ? styles.voiceActionBtnActive : ""}`}
+          onClick={toggleCamera}
+          title="Камера"
+        >
+          {isCameraActive ? "📹" : "📷"}
+        </button>
+        <button
+          type="button"
+          className={`${styles.voiceActionBtn} ${isScreenActive ? styles.voiceActionBtnActive : ""}`}
+          onClick={toggleScreenShare}
+          title="Демонстрация экрана"
+        >
+          {isScreenActive ? "💻" : "🖥️"}
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   // ЕСЛИ ВЫБРАН СЕРВЕР: Показываем каналы сервера
   if (activeServer) {
@@ -299,6 +375,8 @@ export default function ChatList() {
             })}
           </div>
         </div>
+
+        {voiceConnectedWidget}
       </aside>
     );
   }
@@ -426,6 +504,8 @@ export default function ChatList() {
           </div>
         </>
       )}
+
+      {voiceConnectedWidget}
     </aside>
   );
 }
