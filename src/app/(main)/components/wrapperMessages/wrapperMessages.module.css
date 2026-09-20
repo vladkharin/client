@@ -142,6 +142,12 @@
   transform: translateY(-1px);
 }
 
+.iconBtnActive {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #818cf8 !important;
+  border-color: #6366f1 !important;
+}
+
 .callBtn {
   display: flex;
   align-items: center;

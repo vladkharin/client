@@ -34,7 +34,10 @@ export const REQUESTS = {
   serverInviteInfo: 'server:invite_info',
   serverDelete: 'server:delete',
   serverLeave: 'server:leave',
+  serverMembers: 'server:members',
   channelCreate: 'channel:create',
+  channelUpdate: 'channel:update',
+  channelDelete: 'channel:delete',
 
   aiQuery: 'ai:query',
   aiSummarize: 'ai:summarize',
@@ -83,4 +86,6 @@ export const NOTIFICATIONS = {
 
   serverNew: 'notification.server.new',
   channelNew: 'notification.channel.new',
+  channelUpdated: 'notification.channel.updated',
+  channelDeleted: 'notification.channel.deleted',
 } as const;

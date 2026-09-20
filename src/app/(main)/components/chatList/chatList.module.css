@@ -439,3 +439,26 @@
   opacity: 0.8;
 }
 
+.channel_settings_btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+
+.chat_item:hover .channel_settings_btn {
+  opacity: 1;
+}
+
+.channel_settings_btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  transform: rotate(45deg);
+}
+

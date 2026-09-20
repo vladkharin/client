@@ -64,18 +64,23 @@ interface CHAT_STATE {
   isMessagesLoading: boolean;
   createGroupModalOpen: boolean;
   createServerModalOpen: boolean;
+  isMemberListOpen: boolean;
   typingUsers: Record<number, string[]>;
 
   setIsChatsLoading: (loading: boolean) => void;
   setIsMessagesLoading: (loading: boolean) => void;
   setCreateGroupModalOpen: (open: boolean) => void;
   setCreateServerModalOpen: (open: boolean) => void;
+  setIsMemberListOpen: (open: boolean) => void;
+  toggleMemberList: () => void;
   setChats: (chats: CHAT[]) => void;
   addChat: (chat: CHAT) => void;
   setActiveChat: (chat: CHAT | null) => void;
   setServers: (servers: ServerItem[]) => void;
   addServer: (server: ServerItem) => void;
   setActiveServer: (server: ServerItem | null) => void;
+  updateServerChannel: (serverId: number, channel: CHAT) => void;
+  deleteServerChannel: (serverId: number, channelId: number) => void;
   setIncomingCall: (inComingCall: IncomingCall | null) => void;
   setAcceptedCall: (call: AcceptedCall) => void;
   clearAcceptedCall: () => void;
@@ -111,12 +116,15 @@ export const useChatStore = create<CHAT_STATE>()(
       isMessagesLoading: false,
       createGroupModalOpen: false,
       createServerModalOpen: false,
+      isMemberListOpen: true,
       typingUsers: {},
 
       setIsChatsLoading: (isChatsLoading: boolean) => set({ isChatsLoading }),
       setIsMessagesLoading: (isMessagesLoading: boolean) => set({ isMessagesLoading }),
       setCreateGroupModalOpen: (open: boolean) => set({ createGroupModalOpen: open }),
       setCreateServerModalOpen: (open: boolean) => set({ createServerModalOpen: open }),
+      setIsMemberListOpen: (open: boolean) => set({ isMemberListOpen: open }),
+      toggleMemberList: () => set((state) => ({ isMemberListOpen: !state.isMemberListOpen })),
       setChats: (chats: CHAT[]) => set({ chats, isChatsLoading: false }),
       setActiveChat: (chat: CHAT | null) =>
         set((state) => ({
@@ -127,6 +135,61 @@ export const useChatStore = create<CHAT_STATE>()(
       setServers: (servers: ServerItem[]) => set({ servers }),
       addServer: (server: ServerItem) => set((state) => ({ servers: [...state.servers, server] })),
       setActiveServer: (server: ServerItem | null) => set({ activeServer: server }),
+      updateServerChannel: (serverId: number, updatedChannel: CHAT) =>
+        set((state) => {
+          const newServers = state.servers.map((srv) => {
+            if (srv.id === serverId) {
+              return {
+                ...srv,
+                channels: srv.channels.map((c) => (c.id === updatedChannel.id ? { ...c, ...updatedChannel } : c)),
+              };
+            }
+            return srv;
+          });
+          const newActiveServer =
+            state.activeServer?.id === serverId
+              ? {
+                  ...state.activeServer,
+                  channels: state.activeServer.channels.map((c) =>
+                    c.id === updatedChannel.id ? { ...c, ...updatedChannel } : c,
+                  ),
+                }
+              : state.activeServer;
+          const newActiveChat =
+            state.activeChat?.id === updatedChannel.id ? { ...state.activeChat, ...updatedChannel } : state.activeChat;
+
+          return {
+            servers: newServers,
+            activeServer: newActiveServer,
+            activeChat: newActiveChat,
+          };
+        }),
+      deleteServerChannel: (serverId: number, channelId: number) =>
+        set((state) => {
+          const newServers = state.servers.map((srv) => {
+            if (srv.id === serverId) {
+              return {
+                ...srv,
+                channels: srv.channels.filter((c) => c.id !== channelId),
+              };
+            }
+            return srv;
+          });
+          const newActiveServer =
+            state.activeServer?.id === serverId
+              ? {
+                  ...state.activeServer,
+                  channels: state.activeServer.channels.filter((c) => c.id !== channelId),
+                }
+              : state.activeServer;
+          const newActiveChat = state.activeChat?.id === channelId ? null : state.activeChat;
+
+          return {
+            servers: newServers,
+            activeServer: newActiveServer,
+            activeChat: newActiveChat,
+          };
+        }),
       setIncomingCall: (inComingCall: IncomingCall | null) => set({ inComingCall }),
       setAcceptedCall: (call) => set({ acceptedCall: call }),
       clearAcceptedCall: () => set({ acceptedCall: null }),

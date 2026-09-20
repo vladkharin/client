@@ -72,6 +72,8 @@ export default function WrapperMessages() {
     setIsMessagesLoading,
     typingUsers,
     deleteMessage,
+    isMemberListOpen,
+    toggleMemberList,
   } = useChatStore();
   const { sendMessage } = useSocketStore();
   const {
@@ -631,6 +633,16 @@ export default function WrapperMessages() {
               >
                 🔍
               </button>
+
+              {(activeChat?.type === "SERVER_CHANNEL" || activeChat?.type === "SERVER_VOICE" || isGroup) && (
+                <button
+                  className={`${styles.iconBtn} ${isMemberListOpen ? styles.iconBtnActive : ""}`}
+                  onClick={toggleMemberList}
+                  title={isMemberListOpen ? "Скрыть список участников" : "Показать список участников"}
+                >
+                  👥
+                </button>
+              )}
               {isVoiceChannel ? (
                 isInThisVoiceChannel ? (
                   <button

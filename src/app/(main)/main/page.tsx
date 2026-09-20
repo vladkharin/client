@@ -15,6 +15,7 @@ import OutgoingCallModal from "../components/outgoingCallModal/outgoingCallModal
 import CreateGroupModal from "../components/createGroupModal/CreateGroupModal";
 import CreateServerModal from "../components/createServerModal/CreateServerModal";
 import ProfileModal from "../components/profileModal/ProfileModal";
+import MemberList from "../components/memberList/MemberList";
 import ServerBar from "../components/serverBar/ServerBar";
 import CallOverlay from "../components/callOverlay/callOverlay";
 
@@ -44,6 +45,9 @@ export default function Page() {
           <div className={styles.messagesContainer}>
             <WrapperMessages />
           </div>
+
+          {/* Список участников сервера справа (Discord style) */}
+          <MemberList />
         </div>
 
         {/* Оверлей активного звонка и видеосетки */}

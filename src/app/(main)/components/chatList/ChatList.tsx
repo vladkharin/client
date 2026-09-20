@@ -8,6 +8,7 @@ import { useSocketStore, useUserStore, useCallStore } from "@/store";
 import { REQUESTS } from "@/commands/commands";
 import { toast } from "react-toastify";
 import CreateChannelModal from "../createChannelModal/CreateChannelModal";
+import ChannelSettingsModal from "../channelSettingsModal/ChannelSettingsModal";
 import ConfirmModal from "../confirmModal/ConfirmModal";
 import {
   joinMediasoupRoom,
@@ -67,6 +68,7 @@ export default function ChatList() {
 
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
   const [createChannelType, setCreateChannelType] = useState<"SERVER_CHANNEL" | "SERVER_VOICE">("SERVER_CHANNEL");
+  const [channelToEdit, setChannelToEdit] = useState<CHAT | null>(null);
   const [isDeleteServerOpen, setIsDeleteServerOpen] = useState(false);
   const [isLeaveServerOpen, setIsLeaveServerOpen] = useState(false);
 
@@ -388,6 +390,19 @@ export default function ChatList() {
                   <div className={styles.chat_content}>
                     <span className={styles.chat_name}>{channel.name}</span>
                   </div>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      className={styles.channel_settings_btn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setChannelToEdit(channel);
+                      }}
+                      title="Настройки канала"
+                    >
+                      ⚙️
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -449,6 +464,19 @@ export default function ChatList() {
                       <span className={styles.count_badge} style={{ fontSize: "11px" }}>
                         {mergedUsers.length}
                       </span>
+                    )}
+                    {isOwner && (
+                      <button
+                        type="button"
+                        className={styles.channel_settings_btn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setChannelToEdit(channel);
+                        }}
+                        title="Настройки канала"
+                      >
+                        ⚙️
+                      </button>
                     )}
                   </div>
 
@@ -518,6 +546,15 @@ export default function ChatList() {
           confirmText="Покинуть сервер"
           variant="warning"
         />
+
+        {/* Модальное окно настроек канала */}
+        {channelToEdit && (
+          <ChannelSettingsModal
+            channel={channelToEdit}
+            serverId={activeServer.id}
+            onClose={() => setChannelToEdit(null)}
+          />
+        )}
       </aside>
     );
   }
