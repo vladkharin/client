@@ -3,9 +3,10 @@
 import styles from "./outgoingCallModal.module.css";
 import { useCallStore, useSocketStore } from "@/store";
 import { findUserusername } from "@/app/global.service";
+import { leaveMediasoupRoom } from "@/lib/mediasoupManager";
 
 export default function OutgoingCallModal() {
-  const { isOutgoing, conversationId, reset } = useCallStore();
+  const { isOutgoing, conversationId } = useCallStore();
   const { sendMessage } = useSocketStore();
 
   if (!isOutgoing) return null;
@@ -15,8 +16,7 @@ export default function OutgoingCallModal() {
 
   const handleCancel = () => {
     sendMessage("call:cancel", { conversationId: conversationId });
-    // Здесь можно отправить событие на бэкенд call:cancel, если оно есть
-    reset();
+    leaveMediasoupRoom();
   };
 
   return (

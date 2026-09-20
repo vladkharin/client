@@ -12,6 +12,19 @@ const consumedProducerIds = new Set<string>();
 
 export const joinMediasoupRoom = async (conversationId: number) => {
   console.log("📞 joinMediasoupRoom вызван для conversationId:", conversationId);
+
+  // Сбрасываем предыдущие соединения и флаги перед началом нового звонка
+  audioProduced = false;
+  consumedProducerIds.clear();
+  pendingProducers.length = 0;
+  try {
+    sendTransport?.close();
+    recvTransport?.close();
+  } catch {}
+  sendTransport = null;
+  recvTransport = null;
+  device = null;
+
   try {
     const { sendMessage } = useSocketStore.getState();
 

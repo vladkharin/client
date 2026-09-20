@@ -1,21 +1,14 @@
-// src/components/CallOverlay/CallOverlay.tsx
-"use client";
-
 import styles from "./callOverlay.module.css";
 import { useCallStore } from "@/store";
-import { useSocketStore } from "@/store";
+import { leaveMediasoupRoom } from "@/lib/mediasoupManager";
 
 export default function CallOverlay() {
-  const { inCall, conversationId, remoteParticipants, reset } = useCallStore();
-  const { sendMessage } = useSocketStore();
+  const { inCall, remoteParticipants } = useCallStore();
 
   if (!inCall) return null;
 
   const handleLeave = () => {
-    if (conversationId) {
-      sendMessage("mediasoup:leaveRoom", { conversationId });
-    }
-    reset();
+    leaveMediasoupRoom();
   };
 
   const totalCallMembers = new Set(remoteParticipants.map((p) => p.peerId)).size + 1;

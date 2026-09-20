@@ -83,11 +83,14 @@ export const useCallStore = create<CallState>()(
           };
         }),
 
-      removeRemoteParticipant: (producerId) =>
+      removeRemoteParticipant: (id: string) =>
         set((state) => {
-          const participant = state.remoteParticipants.find((p) => p.producerId === producerId);
+          const participant = state.remoteParticipants.find(
+            (p) => p.producerId === id || p.peerId === id,
+          );
           if (participant) {
             participant.audio.pause();
+            participant.audio.remove();
             if (participant.audio.srcObject) {
               const stream = participant.audio.srcObject as MediaStream;
               stream.getTracks().forEach((track) => track.stop());
@@ -95,10 +98,15 @@ export const useCallStore = create<CallState>()(
           }
 
           const newConsumers = { ...state.consumers };
-          delete newConsumers[producerId];
+          delete newConsumers[id];
+          if (participant?.producerId) {
+            delete newConsumers[participant.producerId];
+          }
 
           return {
-            remoteParticipants: state.remoteParticipants.filter((p) => p.producerId !== producerId),
+            remoteParticipants: state.remoteParticipants.filter(
+              (p) => p.producerId !== id && p.peerId !== id,
+            ),
             consumers: newConsumers,
           };
         }),

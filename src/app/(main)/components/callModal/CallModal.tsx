@@ -1,12 +1,12 @@
 import styles from "./callModal.module.css";
-import { useCallStore, useSocketStore } from "@/store";
+import { useSocketStore } from "@/store";
 import { useChatStore } from "@/store/modules/chat";
 import { findUserusername } from "@/app/global.service";
+import { leaveMediasoupRoom } from "@/lib/mediasoupManager";
 
 export default function CallModal() {
   const { sendMessage } = useSocketStore();
-  const { inComingCall, setIncomingCall } = useChatStore(); // Добавим сеттер для закрытия
-  const { reset } = useCallStore();
+  const { inComingCall, setIncomingCall } = useChatStore();
   const chat_id = inComingCall?.conversationId;
   const callerData = chat_id ? findUserusername(chat_id) : null;
   const callerusername = callerData?.username || "Неизвестный";
@@ -15,15 +15,12 @@ export default function CallModal() {
     const response = await sendMessage("call:accept", { conversationId: inComingCall?.conversationId });
 
     console.log(response);
-    setIncomingCall(null); // Закрываем модалку после ответа
+    setIncomingCall(null);
   };
 
   const clickToDecline = async () => {
-    // Если есть событие отклонения на бэкенде
-    const response = await sendMessage("mediasoup:leaveRoom", { conversationId: inComingCall?.conversationId });
-    console.log(response);
+    leaveMediasoupRoom();
     setIncomingCall(null);
-    reset();
   };
 
   return (
