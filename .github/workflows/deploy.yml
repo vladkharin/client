@@ -1,48 +1,54 @@
-name: Deploy Messenger Frontend
+name: Messenger Frontend Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - master
+      - main
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build-and-deploy:
+    name: 🚀 Build on GitHub & Deploy to VPS
     runs-on: ubuntu-latest
+
     steps:
-      - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.2.0
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.SERVER_HOST || secrets.VPS_HOST }}
-          username: ${{ secrets.SERVER_USER || secrets.VPS_USER }}
-          password: ${{ secrets.SERVER_PASSWORD || secrets.VPS_PASSWORD }}
-          key: ${{ secrets.SERVER_SSH_KEY || secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || secrets.VPS_PORT || 22 }}
-          script_stop: true
-          script: |
-            # Load environment paths
-            source ~/.bashrc 2>/dev/null || true
-            source ~/.profile 2>/dev/null || true
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            export PATH=$PATH:/usr/local/bin:/usr/bin:$HOME/.local/bin:$HOME/.npm-global/bin
+          node-version: 20
+          cache: 'npm'
 
-            echo "=== Node & PM2 Info ==="
-            node -v || true
-            npm -v || true
-            pm2 -v || true
+      - name: 📦 Install dependencies
+        run: npm ci --legacy-peer-deps || npm install
 
-            echo "=== Updating Code ==="
-            cd ~/projects/messenger-frontend || cd /home/vladkharin/projects/messenger-frontend || cd /root/projects/messenger-frontend
-            git fetch origin main
-            git reset --hard origin/main
+      - name: 🏗️ Build Next.js (on GitHub Actions 16GB RAM)
+        run: |
+          npm run build
+          rm -rf .next/cache
+          tar -czf frontend-build.tar.gz .next public package.json package-lock.json
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NODE_ENV: production
 
-            echo "=== Installing Dependencies ==="
-            npm install
-
-            echo "=== Building Frontend ==="
-            npm run build
-
-            echo "=== Restarting PM2 ==="
-            pm2 restart messenger-client || pm2 start npm --name messenger-client -- start
-            pm2 save || true
-            echo "=== Deploy Complete! ==="
+      - name: 🚚 Stream & Deploy to VPS over SSH
+        env:
+          SSHPASS: ${{ secrets.SERVER_PASSWORD || secrets.VPS_PASSWORD }}
+          HOST: ${{ secrets.SERVER_HOST || secrets.VPS_HOST }}
+          USER: ${{ secrets.SERVER_USER || secrets.VPS_USER }}
+          PORT: ${{ secrets.SERVER_PORT || secrets.VPS_PORT || 22 }}
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y sshpass
+          
+          # Прямая передача через SSH pipe в tar (100% совместимо со всеми VPS)
+          cat frontend-build.tar.gz | sshpass -e ssh -o StrictHostKeyChecking=no -p $PORT $USER@$HOST "
+            mkdir -p ~/projects/messenger-frontend &&
+            cd ~/projects/messenger-frontend &&
+            tar -xzf - &&
+            npm install --production --prefer-offline || true &&
+            pm2 restart messenger-client || pm2 start npm --name 'messenger-client' -- start &&
+            echo '✅ Messenger Frontend deployed successfully!'
+          "
