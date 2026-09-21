@@ -19,13 +19,30 @@ jobs:
           port: ${{ secrets.SERVER_PORT || secrets.VPS_PORT || 22 }}
           script_stop: true
           script: |
+            # Load environment paths
+            source ~/.bashrc 2>/dev/null || true
+            source ~/.profile 2>/dev/null || true
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            export PATH=$PATH:/usr/local/bin:$HOME/.local/bin
+            export PATH=$PATH:/usr/local/bin:/usr/bin:$HOME/.local/bin:$HOME/.npm-global/bin
 
-            cd ~/projects/messenger-frontend
+            echo "=== Node & PM2 Info ==="
+            node -v || true
+            npm -v || true
+            pm2 -v || true
+
+            echo "=== Updating Code ==="
+            cd ~/projects/messenger-frontend || cd /home/vladkharin/projects/messenger-frontend || cd /root/projects/messenger-frontend
             git fetch origin main
             git reset --hard origin/main
+
+            echo "=== Installing Dependencies ==="
             npm install
+
+            echo "=== Building Frontend ==="
             npm run build
+
+            echo "=== Restarting PM2 ==="
             pm2 restart messenger-client || pm2 start npm --name messenger-client -- start
+            pm2 save || true
+            echo "=== Deploy Complete! ==="
