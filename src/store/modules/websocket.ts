@@ -7,6 +7,7 @@ import { generateId } from "@/utils/ids";
 import { requestAfterAuthorization } from "@/utils/requestAfterAuthorization";
 import { registerSocketListeners } from "@/lib/socketlisteners";
 import { SERVER_TYPE, useGlobalStore } from "./global";
+import { reportClientError } from "@/lib/clientLogger";
 
 interface SocketState {
   socket: Socket | null;
@@ -75,6 +76,11 @@ export const useSocketStore = create<SocketState>()(
       socket.on("connect_error", (error) => {
         console.error("🔴 Socket connect_error:", error);
         set({ isConnected: false });
+        reportClientError({
+          source: "socket",
+          message: error.message || "Socket connect_error",
+          context: { type: "connect_error" },
+        });
       });
 
       socket.off("auth:ready");
@@ -86,8 +92,13 @@ export const useSocketStore = create<SocketState>()(
       });
 
       socket.off("auth:error");
-      socket.on("auth:error", (err) => {
+      socket.on("auth:error", (err: any) => {
         console.error("🔴 Socket auth error:", err);
+        reportClientError({
+          source: "socket",
+          message: err?.message || "Socket authentication error",
+          context: { authError: err },
+        });
       });
 
       socket.off("disconnect");
