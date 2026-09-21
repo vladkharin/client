@@ -71,6 +71,12 @@ export const useSocketStore = create<SocketState>()(
         set({ isConnected: true, socket });
       });
 
+      socket.off("connect_error");
+      socket.on("connect_error", (error) => {
+        console.error("🔴 Socket connect_error:", error);
+        set({ isConnected: false });
+      });
+
       socket.off("auth:ready");
       socket.on("auth:ready", () => {
         console.log("🔐 Auth ready");

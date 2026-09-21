@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthGuard } from "@/components/guards/AuthGuard";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import Script from "next/script";
 
 const geistSans = Geist({
@@ -130,18 +131,20 @@ export default function RootLayout({
         />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <AuthGuard>
-          <ToastContainer
-            position="top-right" // Позиция уведомлений
-            autoClose={3000} // Закроется через 3 сек
-            theme="dark" // Тёмная тема (под твой интерфейс)
-          />
-          {children}
-          <Script
-            src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"
-            strategy="afterInteractive"
-          />
-        </AuthGuard>
+        <GlobalErrorBoundary>
+          <AuthGuard>
+            <ToastContainer
+              position="top-right" // Позиция уведомлений
+              autoClose={3000} // Закроется через 3 сек
+              theme="dark" // Тёмная тема (под твой интерфейс)
+            />
+            {children}
+            <Script
+              src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"
+              strategy="afterInteractive"
+            />
+          </AuthGuard>
+        </GlobalErrorBoundary>
       </body>
     </html>
   );

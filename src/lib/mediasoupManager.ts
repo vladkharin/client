@@ -1,6 +1,8 @@
 import * as mediasoup from "mediasoup-client";
 import { useSocketStore, useCallStore, useMediaSettingsStore } from "@/store";
 import { playJoinSound, playLeaveSound, playMuteSound } from "./audioSounds";
+import { reportClientError } from "./clientLogger";
+import { toast } from "react-toastify";
 
 let device: mediasoup.types.Device | null = null;
 let sendTransport: mediasoup.types.Transport | null = null;
@@ -39,6 +41,10 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     const { sendMessage } = useSocketStore.getState();
 
     const routerRtpCapabilities = await sendMessage("mediasoup:getRouterRtpCapabilities", { conversationId });
+    if (!routerRtpCapabilities) {
+      throw new Error("Сервер не вернул параметры RTP роутера");
+    }
+
     device = new mediasoup.Device();
     await device.load({ routerRtpCapabilities });
 
@@ -67,7 +73,9 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     playJoinSound();
 
     // 3. Запускаем микрофон
-    produceAudio().catch(console.error);
+    produceAudio().catch((err) => {
+      console.error("produceAudio failed in join:", err);
+    });
 
     // 4. Обрабатываем очередь продюсеров
     while (pendingProducers.length > 0) {
@@ -90,9 +98,16 @@ export const joinMediasoupRoom = async (conversationId: number) => {
     } catch (err) {
       console.warn("Не удалось получить существующих продюсеров:", err);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ joinMediasoupRoom failed:", error);
-    useCallStore.setState({ error: String(error), inCall: false });
+    reportClientError({
+      source: "webrtc_join",
+      message: error?.message || String(error),
+      stack: error?.stack,
+      context: { conversationId },
+    });
+    toast.error("Не удалось подключиться к голосовой комнате: " + (error?.message || "Ошибка соединения"));
+    useCallStore.setState({ error: String(error?.message || error), inCall: false });
     leaveMediasoupRoom();
   }
 };
@@ -107,7 +122,15 @@ function setupSendTransport(transport: mediasoup.types.Transport, conversationId
         dtlsParameters,
       })
       .then(() => callback())
-      .catch(errback);
+      .catch((err) => {
+        reportClientError({
+          source: "webrtc_transport",
+          message: `Send transport connect error: ${err?.message || err}`,
+          stack: err?.stack,
+          context: { conversationId, transportId: transport.id },
+        });
+        errback(err);
+      });
   });
 
   transport.on("produce", ({ kind, rtpParameters }, callback, errback) => {
@@ -126,7 +149,27 @@ function setupSendTransport(transport: mediasoup.types.Transport, conversationId
           errback(new Error("No producer ID returned from server"));
         }
       })
-      .catch(errback);
+      .catch((err) => {
+        reportClientError({
+          source: "webrtc_transport",
+          message: `Produce error (${kind}): ${err?.message || err}`,
+          stack: err?.stack,
+          context: { conversationId, kind },
+        });
+        errback(err);
+      });
+  });
+
+  transport.on("connectionstatechange", (state) => {
+    console.log(`📡 Send transport connection state: ${state}`);
+    if (state === "failed") {
+      reportClientError({
+        source: "webrtc_transport",
+        message: "Send transport connection failed (WebRTC / ICE failure)",
+        context: { conversationId, transportId: transport.id, state, direction: "send" },
+      });
+      toast.error("Сбой соединения с голосовым сервером (WebRTC / UDP). Проверьте фаервол или VPN.");
+    }
   });
 }
 
@@ -140,16 +183,47 @@ function setupRecvTransport(transport: mediasoup.types.Transport, conversationId
         dtlsParameters,
       })
       .then(() => callback())
-      .catch(errback);
+      .catch((err) => {
+        reportClientError({
+          source: "webrtc_transport",
+          message: `Recv transport connect error: ${err?.message || err}`,
+          stack: err?.stack,
+          context: { conversationId, transportId: transport.id },
+        });
+        errback(err);
+      });
+  });
+
+  transport.on("connectionstatechange", (state) => {
+    console.log(`📡 Recv transport connection state: ${state}`);
+    if (state === "failed") {
+      reportClientError({
+        source: "webrtc_transport",
+        message: "Recv transport connection failed (WebRTC / ICE failure)",
+        context: { conversationId, transportId: transport.id, state, direction: "recv" },
+      });
+    }
   });
 }
 
 async function produceAudio() {
   if (audioProduced || !sendTransport) return;
-  if (device && !device.canProduce("audio")) return;
+  if (device && !device.canProduce("audio")) {
+    console.warn("Device cannot produce audio");
+    return;
+  }
   audioProduced = true;
 
   try {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (typeof window !== "undefined" && !window.isSecureContext) {
+        toast.error("Для работы микрофона требуется HTTPS-соединение (защищенный контекст).");
+        throw new Error("Insecure context: getUserMedia not available without HTTPS");
+      }
+      toast.error("Ваш браузер не поддерживает доступ к микрофону.");
+      throw new Error("getUserMedia is not supported on this browser/device");
+    }
+
     const { audioInputDeviceId, echoCancellation, noiseSuppression, autoGainControl } =
       useMediaSettingsStore.getState();
 
@@ -176,9 +250,26 @@ async function produceAudio() {
       useCallStore.getState().removeProducer(producer.id);
       audioProducer = null;
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error("💥 produceAudio failed:", e);
     audioProduced = false;
+
+    reportClientError({
+      source: "webrtc_mic",
+      message: e?.message || "produceAudio failed",
+      stack: e?.stack,
+      context: {
+        errorName: e?.name,
+      },
+    });
+
+    if (e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") {
+      toast.error("Доступ к микрофону заблокирован браузером. Разрешите микрофон в настройках сайта (иконка замка слева в адресной строке).", { autoClose: 7000 });
+    } else if (e?.name === "NotFoundError" || e?.name === "DevicesNotFoundError") {
+      toast.error("Микрофон не обнаружен на вашем устройстве.", { autoClose: 5000 });
+    } else if (e?.name === "NotReadableError") {
+      toast.error("Микрофон уже используется другим приложением.", { autoClose: 5000 });
+    }
   }
 }
 
@@ -418,8 +509,14 @@ export const consumeProducer = async (conversationId: number, producerId: string
       // Сохраняем видео-поток в стор для красивого React рендеринга в CallOverlay!
       useCallStore.getState().setRemoteVideoStream(peerId, stream);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ [Consume FATAL]:", error);
+    reportClientError({
+      source: "webrtc_transport",
+      message: `consumeProducer failed: ${error?.message || error}`,
+      stack: error?.stack,
+      context: { conversationId, producerId, peerId },
+    });
     consumedProducerIds.delete(producerId);
   }
 };
