@@ -64,6 +64,7 @@ interface CHAT_STATE {
   isMessagesLoading: boolean;
   createGroupModalOpen: boolean;
   createServerModalOpen: boolean;
+  serverSettingsModalOpen: boolean;
   isMemberListOpen: boolean;
   typingUsers: Record<number, string[]>;
   onlineUserIds: number[];
@@ -72,6 +73,7 @@ interface CHAT_STATE {
   setIsMessagesLoading: (loading: boolean) => void;
   setCreateGroupModalOpen: (open: boolean) => void;
   setCreateServerModalOpen: (open: boolean) => void;
+  setServerSettingsModalOpen: (open: boolean) => void;
   setIsMemberListOpen: (open: boolean) => void;
   toggleMemberList: () => void;
   setOnlineUserIds: (ids: number[]) => void;
@@ -81,6 +83,8 @@ interface CHAT_STATE {
   setActiveChat: (chat: CHAT | null) => void;
   setServers: (servers: ServerItem[]) => void;
   addServer: (server: ServerItem) => void;
+  updateServer: (serverId: number, data: Partial<ServerItem>) => void;
+  removeServer: (serverId: number) => void;
   setActiveServer: (server: ServerItem | null) => void;
   updateServerChannel: (serverId: number, channel: CHAT) => void;
   deleteServerChannel: (serverId: number, channelId: number) => void;
@@ -119,14 +123,16 @@ export const useChatStore = create<CHAT_STATE>()(
       isMessagesLoading: false,
       createGroupModalOpen: false,
       createServerModalOpen: false,
-      isMemberListOpen: typeof window !== "undefined" ? window.innerWidth > 1024 : true,
+      serverSettingsModalOpen: false,
+      isMemberListOpen: false,
       typingUsers: {},
       onlineUserIds: [],
 
-      setIsChatsLoading: (isChatsLoading: boolean) => set({ isChatsLoading }),
-      setIsMessagesLoading: (isMessagesLoading: boolean) => set({ isMessagesLoading }),
+      setIsChatsLoading: (loading: boolean) => set({ isChatsLoading: loading }),
+      setIsMessagesLoading: (loading: boolean) => set({ isMessagesLoading: loading }),
       setCreateGroupModalOpen: (open: boolean) => set({ createGroupModalOpen: open }),
       setCreateServerModalOpen: (open: boolean) => set({ createServerModalOpen: open }),
+      setServerSettingsModalOpen: (open: boolean) => set({ serverSettingsModalOpen: open }),
       setIsMemberListOpen: (open: boolean) => set({ isMemberListOpen: open }),
       toggleMemberList: () => set((state) => ({ isMemberListOpen: !state.isMemberListOpen })),
       setOnlineUserIds: (ids: number[]) =>
@@ -230,6 +236,22 @@ export const useChatStore = create<CHAT_STATE>()(
         }),
       setServers: (servers: ServerItem[]) => set({ servers }),
       addServer: (server: ServerItem) => set((state) => ({ servers: [...state.servers, server] })),
+      updateServer: (serverId: number, data: Partial<ServerItem>) =>
+        set((state) => {
+          const newServers = state.servers.map((srv) => (srv.id === serverId ? { ...srv, ...data } : srv));
+          const newActiveServer = state.activeServer?.id === serverId ? { ...state.activeServer, ...data } : state.activeServer;
+          return { servers: newServers, activeServer: newActiveServer };
+        }),
+      removeServer: (serverId: number) =>
+        set((state) => {
+          const newServers = state.servers.filter((srv) => srv.id !== serverId);
+          const newActiveServer = state.activeServer?.id === serverId ? null : state.activeServer;
+          return {
+            servers: newServers,
+            activeServer: newActiveServer,
+            activeChat: state.activeServer?.id === serverId ? null : state.activeChat,
+          };
+        }),
       setActiveServer: (server: ServerItem | null) =>
         set(() => {
           const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;

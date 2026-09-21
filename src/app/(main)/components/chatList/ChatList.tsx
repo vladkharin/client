@@ -9,6 +9,7 @@ import { REQUESTS } from "@/commands/commands";
 import { toast } from "react-toastify";
 import CreateChannelModal from "../createChannelModal/CreateChannelModal";
 import ChannelSettingsModal from "../channelSettingsModal/ChannelSettingsModal";
+import { ServerSettingsModal } from "../serverSettingsModal/ServerSettingsModal";
 import ConfirmModal from "../confirmModal/ConfirmModal";
 import UserActionPopover, { TargetUserAction } from "../userActionPopover/UserActionPopover";
 import {
@@ -54,6 +55,7 @@ export default function ChatList() {
     isChatsLoading,
     setIsMessagesLoading,
     onlineUserIds,
+    setServerSettingsModalOpen,
   } = useChatStore();
 
   const { user_id, username: currentUsername, setProfileModalOpen } = useUserStore();
@@ -241,6 +243,23 @@ export default function ChatList() {
               <span className={styles.count_badge}>
                 {activeServer.membersCount || 1}
               </span>
+              <button
+                type="button"
+                onClick={() => setServerSettingsModalOpen(true)}
+                title="Настройки сервера (роли, название, участники)"
+                style={{
+                  background: "rgba(255, 255, 255, 0.08)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  color: "#e2e8f0",
+                  borderRadius: "6px",
+                  padding: "3px 7px",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                ⚙️
+              </button>
               {isOwner ? (
                 <button
                   type="button"
@@ -571,6 +590,9 @@ export default function ChatList() {
             onClose={() => setChannelToEdit(null)}
           />
         )}
+
+        {/* Модальное окно настроек сервера (название, роли, участники, инвайты) */}
+        <ServerSettingsModal />
 
         {/* Меню действий с пользователем */}
         <UserActionPopover
