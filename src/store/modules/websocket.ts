@@ -85,10 +85,25 @@ export const useSocketStore = create<SocketState>()(
         onReady?.();
       });
 
+      socket.off("auth:error");
+      socket.on("auth:error", (err) => {
+        console.error("🔴 Socket auth error:", err);
+      });
+
       socket.off("disconnect");
       socket.on("disconnect", (reason) => {
         console.warn("🟡 Socket disconnected:", reason);
         set({ isConnected: false });
+        if (reason === "io server disconnect") {
+          // The disconnection was initiated by the server (e.g. restart/deploy)
+          // Automatically try to reconnect
+          setTimeout(() => {
+            if (socket && !socket.connected) {
+              console.log("🔄 Reconnecting socket after server disconnect...");
+              socket.connect();
+            }
+          }, 2000);
+        }
       });
 
       // Универсальный слушатель ответов (если сервер шлет ответ не через callback)
