@@ -90,6 +90,7 @@ export default function WrapperMessages() {
   const {
     activeChat,
     setActiveChat,
+    activeServer,
     messages,
     setMessages,
     firstUnreadId,
@@ -128,6 +129,10 @@ export default function WrapperMessages() {
   const [isUploading, setIsUploading] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  // Slowmode cooldown state
+  const [slowmodeTimer, setSlowmodeTimer] = useState<number>(0);
+  const slowmodeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Phase 1-3 States
   const [replyingTo, setReplyingTo] = useState<MessageChat | null>(null);
@@ -522,6 +527,21 @@ export default function WrapperMessages() {
             sender: response.sender || { id: user_id, username: "" },
           });
         }
+
+        // Trigger slowmode cooldown if channel has slowmode and user is not admin
+        if (activeChat?.slowmode && activeChat.slowmode > 0 && !isServerAdmin) {
+          setSlowmodeTimer(activeChat.slowmode);
+          if (slowmodeIntervalRef.current) clearInterval(slowmodeIntervalRef.current);
+          slowmodeIntervalRef.current = setInterval(() => {
+            setSlowmodeTimer((prev) => {
+              if (prev <= 1) {
+                if (slowmodeIntervalRef.current) clearInterval(slowmodeIntervalRef.current);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        }
       }
     } catch (err) {
       console.error("Failed to send message:", err);
@@ -550,6 +570,13 @@ export default function WrapperMessages() {
       )
     : messages || [];
 
+  const isServerAdmin =
+    activeServer?.ownerId === user_id ||
+    activeServer?.role === "OWNER" ||
+    activeServer?.role === "ADMIN";
+
+  const isAnnouncementRestricted = !!activeChat?.isAnnouncement && !isServerAdmin;
+
   return (
     <section className={styles.wrapper}>
       {activeChat === null ? (
@@ -571,6 +598,10 @@ export default function WrapperMessages() {
               <div className={styles.avatar}>
                 {activeChat?.type === "SERVER_VOICE"
                   ? "🔊"
+                  : activeChat?.isAnnouncement
+                  ? "📢"
+                  : activeChat?.isPrivate
+                  ? "🔒"
                   : activeChat?.type === "SERVER_CHANNEL"
                   ? "#"
                   : isGroup
@@ -578,10 +609,21 @@ export default function WrapperMessages() {
                   : (activeChat?.interlocutor?.username?.[0]?.toUpperCase() || "👤")}
               </div>
               <div className={styles.chatInfo}>
-                <span className={styles.chatTitleText}>{chatTitle}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span className={styles.chatTitleText}>{chatTitle}</span>
+                  {activeChat?.isAnnouncement && <span title="Канал объявлений">📢</span>}
+                  {activeChat?.isPrivate && <span title="Приватный канал">🔒</span>}
+                  {activeChat?.slowmode && activeChat.slowmode > 0 ? (
+                    <span style={{ fontSize: "11px", background: "rgba(255, 255, 255, 0.08)", padding: "2px 6px", borderRadius: "6px", color: "var(--text-muted)" }}>
+                      ⏱️ {activeChat.slowmode}s
+                    </span>
+                  ) : null}
+                </div>
                 {isServerChannel ? (
                   <span className={styles.chatSubtitle}>
-                    {activeChat.type === "SERVER_VOICE" ? (
+                    {activeChat.topic ? (
+                      <span title={activeChat.topic}>📝 {activeChat.topic}</span>
+                    ) : activeChat.type === "SERVER_VOICE" ? (
                       isInThisVoiceChannel ? (
                         voiceConnectionState === "connecting" ? (
                           <span style={{ color: "#eab308", fontWeight: 600 }}>🟡 Подключение к голосовой связи...</span>
@@ -1160,6 +1202,20 @@ export default function WrapperMessages() {
                   </button>
                 </div>
               </div>
+            ) : isAnnouncementRestricted ? (
+              <div
+                style={{
+                  padding: "14px 20px",
+                  background: "rgba(255, 255, 255, 0.03)",
+                  border: "1px dashed var(--border-color)",
+                  borderRadius: "12px",
+                  textAlign: "center",
+                  color: "var(--text-secondary)",
+                  fontSize: "13px",
+                }}
+              >
+                📢 Это канал объявлений. Только администраторы могут отправлять сообщения.
+              </div>
             ) : (
               /* Обычная панель ввода */
               <div className={styles.input_container}>
@@ -1174,6 +1230,7 @@ export default function WrapperMessages() {
                   onClick={() => fileInputRef.current?.click()}
                   title="Прикрепить файл или фото"
                   type="button"
+                  disabled={slowmodeTimer > 0}
                 >
                   📎
                 </button>
@@ -1183,6 +1240,7 @@ export default function WrapperMessages() {
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   title="Вставить эмодзи"
                   type="button"
+                  disabled={slowmodeTimer > 0}
                 >
                   😊
                 </button>
@@ -1192,6 +1250,7 @@ export default function WrapperMessages() {
                   onClick={startRecording}
                   title="Записать голосовое сообщение"
                   type="button"
+                  disabled={slowmodeTimer > 0}
                 >
                   🎙️
                 </button>
@@ -1201,16 +1260,18 @@ export default function WrapperMessages() {
                   type="text"
                   className={styles.text_input}
                   placeholder={
-                    editingMessage
+                    slowmodeTimer > 0
+                      ? `Медленный режим: подождите ${slowmodeTimer}с...`
+                      : editingMessage
                       ? "Редактируйте сообщение..."
                       : isUploading
                       ? "Загрузка файла..."
                       : "Напишите сообщение (или /ai, /summary)..."
                   }
-                  disabled={isUploading}
+                  disabled={isUploading || slowmodeTimer > 0}
                   onChange={handleInputChange}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && slowmodeTimer === 0) {
                       handleSend();
                     } else if (e.key === "Escape" && (replyingTo || editingMessage)) {
                       cancelContextAction();
@@ -1221,11 +1282,13 @@ export default function WrapperMessages() {
                 <button
                   className={styles.send_button}
                   onClick={handleSend}
-                  disabled={isUploading}
-                  title="Отправить"
+                  disabled={isUploading || slowmodeTimer > 0}
+                  title={slowmodeTimer > 0 ? `Подождите ${slowmodeTimer}с` : "Отправить"}
                 >
                   {isUploading ? (
                     "..."
+                  ) : slowmodeTimer > 0 ? (
+                    <span>⏱️ {slowmodeTimer}с</span>
                   ) : editingMessage ? (
                     <>
                       <span className={styles.send_btn_text}>Сохранить</span>

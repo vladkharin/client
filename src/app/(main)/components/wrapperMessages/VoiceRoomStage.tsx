@@ -109,7 +109,7 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
   onToggleViewMode,
 }) => {
   const { user_id, username: myUsername, setProfileModalOpen } = useUserStore();
-  const { voiceConnectionState } = useCallStore();
+  const { voiceConnectionState, speakingPeers } = useCallStore();
 
   const [selectedUserAction, setSelectedUserAction] = useState<TargetUserAction | null>(null);
   const [userActionPos, setUserActionPos] = useState<{ top: number; left: number } | null>(null);
@@ -180,6 +180,7 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                 ? isCameraActive || isScreenActive
                 : user.hasVideo;
               const userMuted = isMe ? isMicMuted : user.hasAudio === false;
+              const isSpeaking = isMe ? !!speakingPeers["local"] : !!speakingPeers[String(user.id)];
               const remoteStream = !isMe ? remoteVideoStreams[String(user.id)] : null;
 
               if (isMe && localVideoStream && hasVideo) {
@@ -215,7 +216,7 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
               return (
                 <div
                   key={user.id}
-                  className={`${styles.userCard} ${!userMuted ? styles.speaking : ""}`}
+                  className={`${styles.userCard} ${isSpeaking ? styles.speaking : ""}`}
                   title={isMe ? `${user.username} (Вы)` : `Нажмите для действий с ${user.username}`}
                   onClick={(e) => {
                     if (!isMe) {
@@ -229,11 +230,15 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                   <div className={styles.avatarWrapper}>
                     <div
                       className={styles.largeAvatar}
-                      style={{ background: getAvatarGradient(user.username) }}
+                      style={{
+                        background: getAvatarGradient(user.username),
+                        boxShadow: isSpeaking ? "0 0 0 3px #22c55e, 0 0 16px rgba(34, 197, 94, 0.7)" : "none",
+                        transition: "box-shadow 0.15s ease",
+                      }}
                     >
                       {getInitials(user.username)}
                     </div>
-                    {!userMuted && <div className={styles.speakingRing} />}
+                    {isSpeaking && <div className={styles.speakingRing} />}
                   </div>
 
                   <div className={styles.cardName}>
@@ -241,9 +246,9 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                   </div>
 
                   <div
-                    className={`${styles.cardBadge} ${userMuted ? styles.muted : ""}`}
+                    className={`${styles.cardBadge} ${userMuted ? styles.muted : isSpeaking ? styles.speakingBadge : ""}`}
                   >
-                    {userMuted ? "🔇 Выкл" : "🎙️ В эфире"}
+                    {userMuted ? "🔇 Выкл" : isSpeaking ? "🟢 Говорит" : "🎙️ В эфире"}
                   </div>
                 </div>
               );

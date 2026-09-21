@@ -482,3 +482,95 @@
   transform: rotate(45deg);
 }
 
+/* КАТЕГОРИИ КАНАЛОВ СЕРВЕРА (DISCORD STYLE) */
+.category_group {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.category_header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.category_header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.category_left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.category_header:hover .category_left {
+  color: var(--text-primary);
+}
+
+.category_arrow {
+  font-size: 9px;
+  display: inline-block;
+  transition: transform 0.2s ease;
+  width: 12px;
+  text-align: center;
+}
+
+.category_arrow_open {
+  transform: rotate(90deg);
+}
+
+.category_add_btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 4px;
+  opacity: 0;
+  transition: all 0.15s ease;
+  border-radius: 4px;
+}
+
+.category_header:hover .category_add_btn {
+  opacity: 1;
+}
+
+.category_add_btn:hover {
+  color: var(--primary);
+  background: rgba(249, 115, 22, 0.15);
+}
+
+.channel_type_icon {
+  font-size: 15px;
+  width: 18px;
+  text-align: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.chat_item_active .channel_type_icon {
+  color: #ffffff;
+}
+
+.slowmode_badge {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+

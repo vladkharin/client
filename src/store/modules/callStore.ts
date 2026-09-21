@@ -47,6 +47,7 @@ interface CallState {
   remoteVideoStreams: Record<string, MediaStream>; // peerId -> MediaStream
   consumers: Record<string, mediasoup.types.Consumer>;
   channelParticipants: Record<number, ChannelUser[]>; // conversationId -> users in voice channel
+  speakingPeers: Record<string, boolean>; // peerId / 'local' -> boolean
 
   // Методы
   setOutgoing: (isOutgoing: boolean) => void;
@@ -54,6 +55,7 @@ interface CallState {
   setInCall: (inCall: boolean) => void;
   setVoiceConnectionState: (state: "idle" | "connecting" | "connected" | "disconnected" | "error") => void;
   setChannelParticipants: (conversationId: number, users: ChannelUser[]) => void;
+  setSpeakingPeer: (peerId: string, isSpeaking: boolean) => void;
 
   addRemoteParticipant: (peerId: string, producerId: string, audio: HTMLAudioElement) => void;
   removeRemoteParticipant: (producerId: string) => void;
@@ -90,6 +92,7 @@ export const useCallStore = create<CallState>()(
       remoteVideoStreams: {},
       consumers: {},
       channelParticipants: {},
+      speakingPeers: {},
 
       setOutgoing: (isOutgoing) => set({ isOutgoing }),
 
@@ -102,6 +105,17 @@ export const useCallStore = create<CallState>()(
       setInCall: (inCall) => set({ inCall }),
 
       setVoiceConnectionState: (voiceConnectionState) => set({ voiceConnectionState }),
+
+      setSpeakingPeer: (peerId, isSpeaking) =>
+        set((state) => {
+          if (state.speakingPeers[peerId] === isSpeaking) return state;
+          return {
+            speakingPeers: {
+              ...state.speakingPeers,
+              [peerId]: isSpeaking,
+            },
+          };
+        }),
 
       setChannelParticipants: (conversationId, users) => {
         const prevUsers = get().channelParticipants[conversationId] || [];

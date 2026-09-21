@@ -26,6 +26,12 @@ export default function ChannelSettingsModal({
   const [channelType, setChannelType] = useState<"SERVER_CHANNEL" | "SERVER_VOICE">(
     channel.type === "SERVER_VOICE" ? "SERVER_VOICE" : "SERVER_CHANNEL",
   );
+  const [category, setCategory] = useState(channel.category || (channel.type === "SERVER_VOICE" ? "ГОЛОСОВЫЕ КАНАЛЫ" : "ТЕКСТОВЫЕ КАНАЛЫ"));
+  const [topic, setTopic] = useState(channel.topic || "");
+  const [slowmode, setSlowmode] = useState<number>(channel.slowmode || 0);
+  const [isAnnouncement, setIsAnnouncement] = useState<boolean>(!!channel.isAnnouncement);
+  const [isPrivate, setIsPrivate] = useState<boolean>(!!channel.isPrivate);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "permissions">("overview");
@@ -46,9 +52,23 @@ export default function ChannelSettingsModal({
         channelId: channel.id,
         name: cleanName,
         type: channelType,
+        category: category.trim() || undefined,
+        topic: topic.trim() || undefined,
+        slowmode: Number(slowmode),
+        isAnnouncement,
+        isPrivate,
       });
 
-      const updated = res?.response || res || { ...channel, name: cleanName, type: channelType };
+      const updated = res?.response || res || {
+        ...channel,
+        name: cleanName,
+        type: channelType,
+        category: category.trim() || undefined,
+        topic: topic.trim() || undefined,
+        slowmode: Number(slowmode),
+        isAnnouncement,
+        isPrivate,
+      };
       updateServerChannel(serverId, updated);
       toast.success("Настройки канала сохранены");
       onClose();
@@ -83,7 +103,7 @@ export default function ChannelSettingsModal({
         {/* Боковая панель настроек канала в стиле Discord */}
         <div className={styles.sidebar}>
           <div className={styles.sidebarHeader}>
-            <span className={styles.channelPrefix}>{isVoice ? "🔊" : "#"}</span>
+            <span className={styles.channelPrefix}>{isVoice ? "🔊" : isAnnouncement ? "📢" : isPrivate ? "🔒" : "#"}</span>
             <span className={styles.channelTitle}>{channel.name}</span>
           </div>
 
@@ -129,7 +149,7 @@ export default function ChannelSettingsModal({
               <div className={styles.inputGroup}>
                 <label className={styles.label}>Название канала</label>
                 <div className={styles.inputWrapper}>
-                  <span className={styles.inputPrefix}>{isVoice ? "🔊" : "#"}</span>
+                  <span className={styles.inputPrefix}>{isVoice ? "🔊" : isAnnouncement ? "📢" : isPrivate ? "🔒" : "#"}</span>
                   <input
                     type="text"
                     className={`${styles.input} ${styles.inputWithPrefix}`}
@@ -143,6 +163,72 @@ export default function ChannelSettingsModal({
                   Используйте строчные буквы, цифры и дефисы для разделения слов.
                 </span>
               </div>
+
+              <div className={styles.inputGroup}>
+                <label className={styles.label}>Категория</label>
+                <div className={styles.inputWrapper}>
+                  <span className={styles.inputPrefix}>📁</span>
+                  <input
+                    type="text"
+                    className={`${styles.input} ${styles.inputWithPrefix}`}
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="Например: ОСНОВНОЕ"
+                  />
+                </div>
+              </div>
+
+              {!isVoice && (
+                <>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Тема канала (описание)</label>
+                    <div className={styles.inputWrapper}>
+                      <span className={styles.inputPrefix}>📝</span>
+                      <input
+                        type="text"
+                        className={`${styles.input} ${styles.inputWithPrefix}`}
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        placeholder="О чем этот канал..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Медленный режим (Slowmode)</label>
+                    <select
+                      className={styles.input}
+                      value={slowmode}
+                      onChange={(e) => setSlowmode(Number(e.target.value))}
+                      style={{ background: "var(--bg-element)", color: "var(--text-primary)", border: "1px solid var(--border-color)", padding: "8px 12px", borderRadius: "8px" }}
+                    >
+                      <option value={0}>Отключен</option>
+                      <option value={5}>5 секунд</option>
+                      <option value={10}>10 секунд</option>
+                      <option value={15}>15 секунд</option>
+                      <option value={30}>30 секунд</option>
+                      <option value={60}>1 минута</option>
+                      <option value={120}>2 минуты</option>
+                      <option value={300}>5 минут</option>
+                      <option value={600}>10 минут</option>
+                    </select>
+                    <span className={styles.hint}>
+                      Ограничивает частоту отправки сообщений участниками.
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "16px", margin: "12px 0" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--text-primary)", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={isAnnouncement}
+                        onChange={(e) => setIsAnnouncement(e.target.checked)}
+                      />
+                      <span>📢 Канал объявлений (только админы могут писать)</span>
+                    </label>
+                  </div>
+                </>
+              )}
 
               <div className={styles.inputGroup}>
                 <label className={styles.label}>Тип канала</label>

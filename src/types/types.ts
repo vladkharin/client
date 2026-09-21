@@ -53,6 +53,13 @@ export interface CHAT {
   membersCount?: number;
   pinnedMessage?: PinnedMessageInfo | null;
   serverId?: number | null;
+  topic?: string | null;
+  category?: string | null;
+  slowmode?: number;
+  isAnnouncement?: boolean;
+  isPrivate?: boolean;
+  roleName?: string | null;
+  roleColor?: string | null;
 }
 
 export interface ReactionItem {

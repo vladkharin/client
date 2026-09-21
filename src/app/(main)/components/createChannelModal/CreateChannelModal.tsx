@@ -8,17 +8,34 @@ interface CreateChannelModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialType?: "SERVER_CHANNEL" | "SERVER_VOICE";
-  onCreate: (name: string, type: "SERVER_CHANNEL" | "SERVER_VOICE") => Promise<void>;
+  initialCategory?: string;
+  onCreate: (
+    name: string,
+    type: "SERVER_CHANNEL" | "SERVER_VOICE",
+    options?: {
+      category?: string;
+      topic?: string;
+      slowmode?: number;
+      isAnnouncement?: boolean;
+      isPrivate?: boolean;
+    }
+  ) => Promise<void>;
 }
 
 export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   isOpen,
   onClose,
   initialType = "SERVER_CHANNEL",
+  initialCategory,
   onCreate,
 }) => {
   const [channelType, setChannelType] = useState<"SERVER_CHANNEL" | "SERVER_VOICE">(initialType);
   const [channelName, setChannelName] = useState("");
+  const [category, setCategory] = useState(initialCategory || "");
+  const [topic, setTopic] = useState("");
+  const [slowmode, setSlowmode] = useState(0);
+  const [isAnnouncement, setIsAnnouncement] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -26,10 +43,15 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
     if (isOpen) {
       setChannelType(initialType);
       setChannelName("");
+      setCategory(initialCategory || (initialType === "SERVER_VOICE" ? "ГОЛОСОВЫЕ КАНАЛЫ" : "ТЕКСТОВЫЕ КАНАЛЫ"));
+      setTopic("");
+      setSlowmode(0);
+      setIsAnnouncement(false);
+      setIsPrivate(false);
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [isOpen, initialType]);
+  }, [isOpen, initialType, initialCategory]);
 
   if (!isOpen) return null;
 
@@ -43,7 +65,13 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
 
     setLoading(true);
     try {
-      await onCreate(trimmed, channelType);
+      await onCreate(trimmed, channelType, {
+        category: category.trim() || undefined,
+        topic: topic.trim() || undefined,
+        slowmode: Number(slowmode),
+        isAnnouncement,
+        isPrivate,
+      });
       onClose();
     } catch (err: any) {
       toast.error(err?.message || "Не удалось создать канал");
@@ -74,7 +102,10 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
             <div className={styles.typeCards}>
               <div
                 className={`${styles.typeCard} ${channelType === "SERVER_CHANNEL" ? styles.active : ""}`}
-                onClick={() => setChannelType("SERVER_CHANNEL")}
+                onClick={() => {
+                  setChannelType("SERVER_CHANNEL");
+                  if (!initialCategory) setCategory("ТЕКСТОВЫЕ КАНАЛЫ");
+                }}
               >
                 <div className={styles.typeIcon}>💬</div>
                 <div className={styles.typeInfo}>
@@ -88,7 +119,10 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
 
               <div
                 className={`${styles.typeCard} ${channelType === "SERVER_VOICE" ? styles.active : ""}`}
-                onClick={() => setChannelType("SERVER_VOICE")}
+                onClick={() => {
+                  setChannelType("SERVER_VOICE");
+                  if (!initialCategory) setCategory("ГОЛОСОВЫЕ КАНАЛЫ");
+                }}
               >
                 <div className={styles.typeIcon}>🔊</div>
                 <div className={styles.typeInfo}>
@@ -106,7 +140,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
             <label className={styles.sectionLabel}>Название канала</label>
             <div className={styles.inputWrapper}>
               <span className={styles.inputPrefix}>
-                {channelType === "SERVER_CHANNEL" ? "#" : "🔊"}
+                {channelType === "SERVER_CHANNEL" ? (isAnnouncement ? "📢" : isPrivate ? "🔒" : "#") : "🔊"}
               </span>
               <input
                 ref={inputRef}
@@ -122,7 +156,61 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
             </div>
           </div>
 
-          <div className={styles.actions}>
+          <div className={styles.inputGroup} style={{ marginTop: "12px" }}>
+            <label className={styles.sectionLabel}>Категория</label>
+            <div className={styles.inputWrapper}>
+              <span className={styles.inputPrefix}>📁</span>
+              <input
+                type="text"
+                className={styles.input}
+                placeholder="ТЕКСТОВЫЕ КАНАЛЫ"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                maxLength={40}
+              />
+            </div>
+          </div>
+
+          {channelType === "SERVER_CHANNEL" && (
+            <>
+              <div className={styles.inputGroup} style={{ marginTop: "12px" }}>
+                <label className={styles.sectionLabel}>Тема канала (описание)</label>
+                <div className={styles.inputWrapper}>
+                  <span className={styles.inputPrefix}>📝</span>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    placeholder="О чем этот канал..."
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    maxLength={100}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={isAnnouncement}
+                    onChange={(e) => setIsAnnouncement(e.target.checked)}
+                  />
+                  <span>📢 Канал объявлений</span>
+                </label>
+
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={isPrivate}
+                    onChange={(e) => setIsPrivate(e.target.checked)}
+                  />
+                  <span>🔒 Приватный канал</span>
+                </label>
+              </div>
+            </>
+          )}
+
+          <div className={styles.actions} style={{ marginTop: "18px" }}>
             <button
               type="button"
               className={styles.cancelBtn}

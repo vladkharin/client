@@ -13,6 +13,85 @@ let videoProducer: mediasoup.types.Producer | null = null;
 const pendingProducers: Array<{ conversationId: number; producerId: string; peerId: string }> = [];
 const consumedProducerIds = new Set<string>();
 
+interface AnalyserEntry {
+  analyser: AnalyserNode;
+  dataArray: Uint8Array;
+  peerId: string;
+}
+const audioAnalysers = new Map<string, AnalyserEntry>();
+let analyserAnimationId: number | null = null;
+let sharedAudioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    sharedAudioContext = new AudioContextClass();
+  }
+  if (sharedAudioContext.state === "suspended") {
+    sharedAudioContext.resume().catch(() => {});
+  }
+  return sharedAudioContext;
+}
+
+export function registerAudioSource(peerId: string, stream: MediaStream) {
+  try {
+    const ctx = getAudioContext();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.4;
+    source.connect(analyser);
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    audioAnalysers.set(peerId, { analyser, dataArray, peerId });
+
+    if (!analyserAnimationId) {
+      startAudioMonitoring();
+    }
+  } catch (err) {
+    console.warn("Failed to register audio source for analyser:", err);
+  }
+}
+
+export function unregisterAudioSource(peerId: string) {
+  audioAnalysers.delete(peerId);
+  useCallStore.getState().setSpeakingPeer(peerId, false);
+  if (audioAnalysers.size === 0 && analyserAnimationId) {
+    cancelAnimationFrame(analyserAnimationId);
+    analyserAnimationId = null;
+  }
+}
+
+function startAudioMonitoring() {
+  const checkVolume = () => {
+    const { isMicMuted, inCall } = useCallStore.getState();
+    if (!inCall || audioAnalysers.size === 0) {
+      analyserAnimationId = null;
+      return;
+    }
+
+    audioAnalysers.forEach(({ analyser, dataArray, peerId }) => {
+      if (peerId === "local" && isMicMuted) {
+        useCallStore.getState().setSpeakingPeer("local", false);
+        return;
+      }
+
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / dataArray.length;
+      const isSpeaking = average > 12; // Threshold for active speech
+      useCallStore.getState().setSpeakingPeer(peerId, isSpeaking);
+    });
+
+    analyserAnimationId = requestAnimationFrame(checkVolume);
+  };
+
+  analyserAnimationId = requestAnimationFrame(checkVolume);
+}
+
 export const joinMediasoupRoom = async (conversationId: number) => {
   console.log("📞 joinMediasoupRoom вызван для conversationId:", conversationId);
 
@@ -236,6 +315,7 @@ async function produceAudio() {
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
     useCallStore.getState().setLocalStream(stream);
+    registerAudioSource("local", stream);
 
     const track = stream.getAudioTracks()[0];
     if (!track || track.readyState === "ended" || !track.enabled) {
@@ -247,6 +327,7 @@ async function produceAudio() {
     useCallStore.getState().addProducer({ id: producer.id, kind: "audio", track });
 
     producer.on("transportclose", () => {
+      unregisterAudioSource("local");
       useCallStore.getState().removeProducer(producer.id);
       audioProducer = null;
     });
@@ -290,6 +371,7 @@ export async function switchAudioInput(deviceId: string) {
       const oldStream = useCallStore.getState().localStream;
       oldStream?.getAudioTracks().forEach((t) => t.stop());
       useCallStore.getState().setLocalStream(stream);
+      registerAudioSource("local", stream);
     }
   } catch (err) {
     console.error("Failed to switch audio input device:", err);
@@ -486,6 +568,8 @@ export const consumeProducer = async (conversationId: number, producerId: string
       }
 
       document.body.appendChild(audio);
+      registerAudioSource(peerId, stream);
+
       const peerUserId = Number(peerId);
       if (!isNaN(peerUserId)) {
         useMediaSettingsStore.getState().applyUserVolume(peerUserId);
@@ -533,6 +617,11 @@ export const leaveMediasoupRoom = () => {
   }
 
   document.querySelectorAll('audio[id^="remote-audio-"]').forEach((el) => el.remove());
+  audioAnalysers.clear();
+  if (analyserAnimationId) {
+    cancelAnimationFrame(analyserAnimationId);
+    analyserAnimationId = null;
+  }
 
   sendTransport?.close();
   recvTransport?.close();

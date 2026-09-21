@@ -68,10 +68,13 @@ export default function ChatList() {
     isScreenActive,
     channelParticipants,
     setChannelParticipants,
+    speakingPeers,
   } = useCallStore();
 
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
   const [createChannelType, setCreateChannelType] = useState<"SERVER_CHANNEL" | "SERVER_VOICE">("SERVER_CHANNEL");
+  const [createChannelCategory, setCreateChannelCategory] = useState<string | undefined>(undefined);
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [channelToEdit, setChannelToEdit] = useState<CHAT | null>(null);
   const [isDeleteServerOpen, setIsDeleteServerOpen] = useState(false);
   const [isLeaveServerOpen, setIsLeaveServerOpen] = useState(false);
@@ -94,7 +97,14 @@ export default function ChatList() {
     }
   }, [activeServer?.id, activeServer?.channels, sendMessage, setChannelParticipants]);
 
-  const isOwner = activeServer?.ownerId === user_id || activeServer?.role === "OWNER";
+  const isOwner = activeServer?.ownerId === user_id || activeServer?.role === "OWNER" || activeServer?.role === "ADMIN";
+
+  const toggleCategory = (categoryName: string) => {
+    setCollapsedCategories((prev) => ({
+      ...prev,
+      [categoryName]: !prev[categoryName],
+    }));
+  };
 
   const handleDeleteServer = async () => {
     if (!activeServer) return;
@@ -126,13 +136,22 @@ export default function ChatList() {
     }
   };
 
-  const handleCreateChannel = async (name: string, type: "SERVER_CHANNEL" | "SERVER_VOICE") => {
+  const handleCreateChannel = async (
+    name: string,
+    type: "SERVER_CHANNEL" | "SERVER_VOICE",
+    options?: { category?: string; topic?: string; slowmode?: number; isAnnouncement?: boolean; isPrivate?: boolean }
+  ) => {
     if (!activeServer) return;
     try {
       const res: any = await sendMessage(REQUESTS.channelCreate, {
         serverId: activeServer.id,
         name: name.trim(),
         type,
+        category: options?.category || createChannelCategory,
+        topic: options?.topic,
+        slowmode: options?.slowmode,
+        isAnnouncement: options?.isAnnouncement,
+        isPrivate: options?.isPrivate,
       });
 
       const newChannel = res?.response ?? res;
@@ -373,171 +392,185 @@ export default function ChatList() {
           </div>
 
 
-          {/* Текстовые каналы */}
-          <div className={styles.section_title} style={{ marginTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>Текстовые каналы</span>
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateChannelType("SERVER_CHANNEL");
-                  setIsCreateChannelOpen(true);
-                }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "var(--primary)",
-                  cursor: "pointer",
-                  fontSize: "15px",
-                  fontWeight: "bold",
-                  padding: "0 4px",
-                }}
-                title="Создать текстовый канал"
-              >
-                +
-              </button>
-            )}
-          </div>
-          <div className={styles.chats_list}>
-            {textChannels.map((channel) => {
-              const isActive = activeChat?.id === channel.id;
-              return (
-                <div
-                  key={channel.id}
-                  className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
-                  onClick={() => chatClicked(channel)}
-                >
-                  <div className={styles.chat_avatar} style={{ background: "transparent", fontSize: "18px" }}>
-                    #
-                  </div>
-                  <div className={styles.chat_content}>
-                    <span className={styles.chat_name}>{channel.name}</span>
-                  </div>
-                  {isOwner && (
-                    <button
-                      type="button"
-                      className={styles.channel_settings_btn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setChannelToEdit(channel);
-                      }}
-                      title="Настройки канала"
-                    >
-                      ⚙️
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          {/* ДИНАМИЧЕСКИЕ КАТЕГОРИИ КАНАЛОВ СЕРВЕРА */}
+          {(() => {
+            const categoriesMap: Record<string, CHAT[]> = {};
+            (activeServer.channels || []).forEach((ch) => {
+              const catName = ch.category?.trim() || (ch.type === "SERVER_VOICE" ? "ГОЛОСОВЫЕ КАНАЛЫ" : "ТЕКСТОВЫЕ КАНАЛЫ");
+              if (!categoriesMap[catName]) categoriesMap[catName] = [];
+              categoriesMap[catName].push(ch);
+            });
 
-          {/* Голосовые каналы */}
-          <div className={styles.section_title} style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>Голосовые каналы</span>
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateChannelType("SERVER_VOICE");
-                  setIsCreateChannelOpen(true);
-                }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "var(--primary)",
-                  cursor: "pointer",
-                  fontSize: "15px",
-                  fontWeight: "bold",
-                  padding: "0 4px",
-                }}
-                title="Создать голосовой канал"
-              >
-                +
-              </button>
-            )}
-          </div>
-          <div className={styles.chats_list}>
-            {voiceChannels.map((channel) => {
-              const isActive = activeChat?.id === channel.id;
-              const channelUsers = channelParticipants[channel.id] || [];
-              const isMeInChannel = inCall && callConvId === channel.id;
-              const mergedUsers = [...channelUsers];
-              if (isMeInChannel && user_id && !mergedUsers.some((u) => u.id === user_id)) {
-                mergedUsers.unshift({
-                  id: user_id,
-                  username: currentUsername || "Я",
-                  hasAudio: !isMicMuted,
-                  hasVideo: isCameraActive,
-                });
-              }
+            return Object.entries(categoriesMap).map(([categoryName, channels]) => {
+              const isCollapsed = !!collapsedCategories[categoryName];
 
               return (
-                <div className={styles.voice_channel_container} key={channel.id}>
+                <div key={categoryName} className={styles.category_group}>
                   <div
-                    className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
-                    onClick={() => chatClicked(channel)}
+                    className={styles.category_header}
+                    onClick={() => toggleCategory(categoryName)}
+                    title={`Категория ${categoryName}`}
                   >
-                    <div className={styles.chat_avatar} style={{ background: "transparent", fontSize: "18px" }}>
-                      🔊
-                    </div>
-                    <div className={styles.chat_content}>
-                      <span className={styles.chat_name}>{channel.name}</span>
-                    </div>
-                    {mergedUsers.length > 0 && (
-                      <span className={styles.count_badge} style={{ fontSize: "11px" }}>
-                        {mergedUsers.length}
+                    <div className={styles.category_left}>
+                      <span className={`${styles.category_arrow} ${!isCollapsed ? styles.category_arrow_open : ""}`}>
+                        ▶
                       </span>
-                    )}
+                      <span>{categoryName}</span>
+                      <span className={styles.count_badge} style={{ fontSize: "9px", padding: "1px 5px" }}>
+                        {channels.length}
+                      </span>
+                    </div>
+
                     {isOwner && (
                       <button
                         type="button"
-                        className={styles.channel_settings_btn}
+                        className={styles.category_add_btn}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setChannelToEdit(channel);
+                          setCreateChannelCategory(categoryName);
+                          setCreateChannelType(categoryName.toLowerCase().includes("голос") ? "SERVER_VOICE" : "SERVER_CHANNEL");
+                          setIsCreateChannelOpen(true);
                         }}
-                        title="Настройки канала"
+                        title={`Создать канал в категории "${categoryName}"`}
                       >
-                        ⚙️
+                        +
                       </button>
                     )}
                   </div>
 
-                  {mergedUsers.length > 0 && (
-                    <div className={styles.voice_users_list}>
-                      {mergedUsers.map((user) => {
-                        const isMe = user.id === user_id;
-                        const userMuted = isMe ? isMicMuted : !user.hasAudio;
-                        const userCam = isMe ? isCameraActive : user.hasVideo;
+                  {!isCollapsed && (
+                    <div className={styles.chats_list}>
+                      {channels.map((channel) => {
+                        const isActive = activeChat?.id === channel.id;
+                        const isVoice = channel.type === "SERVER_VOICE";
 
+                        // Channel icon determination
+                        const channelIcon = isVoice
+                          ? "🔊"
+                          : channel.isAnnouncement
+                          ? "📢"
+                          : channel.isPrivate
+                          ? "🔒"
+                          : "#";
+
+                        if (isVoice) {
+                          const channelUsers = channelParticipants[channel.id] || [];
+                          const isMeInChannel = inCall && callConvId === channel.id;
+                          const mergedUsers = [...channelUsers];
+                          if (isMeInChannel && user_id && !mergedUsers.some((u) => u.id === user_id)) {
+                            mergedUsers.unshift({
+                              id: user_id,
+                              username: currentUsername || "Я",
+                              hasAudio: !isMicMuted,
+                              hasVideo: isCameraActive,
+                            });
+                          }
+
+                          return (
+                            <div className={styles.voice_channel_container} key={channel.id}>
+                              <div
+                                className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
+                                onClick={() => chatClicked(channel)}
+                              >
+                                <span className={styles.channel_type_icon}>{channelIcon}</span>
+                                <div className={styles.chat_content}>
+                                  <span className={styles.chat_name}>{channel.name}</span>
+                                </div>
+                                {mergedUsers.length > 0 && (
+                                  <span className={styles.count_badge} style={{ fontSize: "11px" }}>
+                                    {mergedUsers.length}
+                                  </span>
+                                )}
+                                {isOwner && (
+                                  <button
+                                    type="button"
+                                    className={styles.channel_settings_btn}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setChannelToEdit(channel);
+                                    }}
+                                    title="Настройки канала"
+                                  >
+                                    ⚙️
+                                  </button>
+                                )}
+                              </div>
+
+                              {mergedUsers.length > 0 && (
+                                <div className={styles.voice_users_list}>
+                                  {mergedUsers.map((user) => {
+                                    const isMe = user.id === user_id;
+                                    const userMuted = isMe ? isMicMuted : !user.hasAudio;
+                                    const userCam = isMe ? isCameraActive : user.hasVideo;
+                                    const isSpeaking = isMe ? !!speakingPeers["local"] : !!speakingPeers[String(user.id)];
+
+                                    return (
+                                      <div
+                                        key={user.id}
+                                        className={styles.voice_user_row}
+                                        title={isMe ? `${user.username} (Вы)` : `Нажмите для действий с ${user.username}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!isMe) {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            setUserActionPos({ top: rect.top, left: rect.right + 10 });
+                                            setSelectedUserAction(user);
+                                          }
+                                        }}
+                                      >
+                                        <div
+                                          className={`${styles.voice_user_avatar} ${isSpeaking ? styles.voice_user_speaking : ""}`}
+                                          style={{ background: getAvatarGradient(user.username) }}
+                                        >
+                                          {getInitials(user.name || user.username)}
+                                        </div>
+                                        <span className={styles.voice_user_name}>
+                                          {user.username} {isMe ? "(Вы)" : ""}
+                                        </span>
+                                        <div className={styles.voice_user_icons}>
+                                          {userCam && <span>📹</span>}
+                                          {userMuted && <span>🔇</span>}
+                                          {isSpeaking && <span style={{ color: "#22c55e", fontWeight: 700 }}>🟢</span>}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Regular or Announcement / Private Text Channel
                         return (
                           <div
-                            key={user.id}
-                            className={styles.voice_user_row}
-                            title={isMe ? `${user.username} (Вы)` : `Нажмите для действий с ${user.username}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!isMe) {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setUserActionPos({ top: rect.top, left: rect.right + 10 });
-                                setSelectedUserAction(user);
-                              }
-                            }}
+                            key={channel.id}
+                            className={`${styles.chat_item} ${isActive ? styles.chat_item_active : ""}`}
+                            onClick={() => chatClicked(channel)}
+                            title={channel.topic ? `Тема: ${channel.topic}` : channel.name || ""}
                           >
-                            <div
-                              className={`${styles.voice_user_avatar} ${!userMuted ? styles.voice_user_speaking : ""}`}
-                              style={{ background: getAvatarGradient(user.username) }}
-                            >
-                              {getInitials(user.name || user.username)}
+                            <span className={styles.channel_type_icon}>{channelIcon}</span>
+                            <div className={styles.chat_content} style={{ flexDirection: "row", alignItems: "center" }}>
+                              <span className={styles.chat_name}>{channel.name}</span>
+                              {channel.slowmode && channel.slowmode > 0 ? (
+                                <span className={styles.slowmode_badge} title={`Медленный режим: ${channel.slowmode}с`}>
+                                  ⏱️ {channel.slowmode}s
+                                </span>
+                              ) : null}
                             </div>
-                            <span className={styles.voice_user_name}>
-                              {user.username} {isMe ? "(Вы)" : ""}
-                            </span>
-                            <div className={styles.voice_user_icons}>
-                              {userCam && <span>📹</span>}
-                              {userMuted && <span>🔇</span>}
-                              {!userMuted && <span>🎙️</span>}
-                            </div>
+                            {isOwner && (
+                              <button
+                                type="button"
+                                className={styles.channel_settings_btn}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setChannelToEdit(channel);
+                                }}
+                                title="Настройки канала"
+                              >
+                                ⚙️
+                              </button>
+                            )}
                           </div>
                         );
                       })}
@@ -545,8 +578,8 @@ export default function ChatList() {
                   )}
                 </div>
               );
-            })}
-          </div>
+            });
+          })()}
 
         </div>
 
@@ -555,9 +588,13 @@ export default function ChatList() {
         {/* Модальное окно создания канала */}
         <CreateChannelModal
           isOpen={isCreateChannelOpen}
-          onClose={() => setIsCreateChannelOpen(false)}
+          onClose={() => {
+            setIsCreateChannelOpen(false);
+            setCreateChannelCategory(undefined);
+          }}
           initialType={createChannelType}
-          onCreate={(name, type) => handleCreateChannel(name, type)}
+          initialCategory={createChannelCategory}
+          onCreate={(name, type, options) => handleCreateChannel(name, type, options)}
         />
 
         {/* Подтверждение удаления сервера */}
