@@ -109,22 +109,12 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
   onToggleViewMode,
 }) => {
   const { user_id, username: myUsername, setProfileModalOpen } = useUserStore();
-  const { voiceConnectionState, speakingPeers, raisedHands, floatingReactions, setRaisedHand, addFloatingReaction } = useCallStore();
+  const { voiceConnectionState, speakingPeers, floatingReactions, addFloatingReaction } = useCallStore();
   const { sendMessage } = useSocketStore();
 
   const [selectedUserAction, setSelectedUserAction] = useState<TargetUserAction | null>(null);
   const [userActionPos, setUserActionPos] = useState<{ top: number; left: number } | null>(null);
   const [showReactionsPicker, setShowReactionsPicker] = useState(false);
-
-  const myHandRaised = !!(user_id && raisedHands[String(user_id)]);
-
-  const toggleRaiseHand = () => {
-    const nextState = !myHandRaised;
-    if (user_id) {
-      setRaisedHand(String(user_id), nextState);
-      sendMessage("voice:raiseHand", { conversationId, isRaised: nextState });
-    }
-  };
 
   const sendReaction = (emoji: string) => {
     if (user_id) {
@@ -203,7 +193,6 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                 : user.hasVideo;
               const userMuted = isMe ? isMicMuted : user.hasAudio === false;
               const isSpeaking = isMe ? !!speakingPeers["local"] : !!speakingPeers[String(user.id)];
-              const isHandUp = !!raisedHands[String(user.id)];
               const userReactions = floatingReactions.filter((r) => r.peerId === String(user.id));
               const remoteStream = !isMe ? remoteVideoStreams[String(user.id)] : null;
 
@@ -216,7 +205,6 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                       isMe={true}
                       isMuted={isMicMuted}
                     />
-                    {isHandUp && <div className={styles.handRaisedBadge}>✋</div>}
                     {userReactions.map((r) => (
                       <div key={r.id} className={styles.floatingReaction}>
                         {r.emoji}
@@ -241,7 +229,6 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                         setSelectedUserAction(user);
                       }}
                     />
-                    {isHandUp && <div className={styles.handRaisedBadge}>✋</div>}
                     {userReactions.map((r) => (
                       <div key={r.id} className={styles.floatingReaction}>
                         {r.emoji}
@@ -265,8 +252,6 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                     }
                   }}
                 >
-                  {isHandUp && <div className={styles.handRaisedBadge}>✋</div>}
-
                   {userReactions.map((r) => (
                     <div key={r.id} className={styles.floatingReaction}>
                       {r.emoji}
@@ -372,17 +357,6 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
             title={isScreenActive ? "Остановить показ" : "Демонстрация экрана"}
           >
             {isScreenActive ? "💻 Экран транслируется" : "🖥️ Демонстрация"}
-          </button>
-
-          <button
-            type="button"
-            className={`${styles.ctrlBtn} ${myHandRaised ? styles.active : ""}`}
-            onClick={toggleRaiseHand}
-            title={myHandRaised ? "Опустить руку" : "Поднять руку"}
-            style={{ background: myHandRaised ? "rgba(245, 158, 11, 0.2)" : undefined, borderColor: myHandRaised ? "#f59e0b" : undefined, color: myHandRaised ? "#f59e0b" : undefined }}
-          >
-            <span>✋</span>
-            <span>{myHandRaised ? "Рука поднята" : "Поднять руку"}</span>
           </button>
 
           <button
