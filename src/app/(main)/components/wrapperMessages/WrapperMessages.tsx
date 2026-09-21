@@ -9,6 +9,7 @@ import { REQUESTS } from "@/commands/commands";
 import { uploadFile } from "@/API/routes";
 import VoiceMessagePlayer from "./VoiceMessagePlayer";
 import VoiceRoomStage from "./VoiceRoomStage";
+import ChannelMediaDrawer from "./ChannelMediaDrawer";
 import {
   joinMediasoupRoom,
   leaveMediasoupRoom,
@@ -140,6 +141,7 @@ export default function WrapperMessages() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mediaDrawerOpen, setMediaDrawerOpen] = useState(false);
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -719,6 +721,14 @@ export default function WrapperMessages() {
                 title="Поиск в чате (Ctrl+F)"
               >
                 🔍
+              </button>
+
+              <button
+                className={`${styles.iconBtn} ${mediaDrawerOpen ? styles.iconBtnActive : ""}`}
+                onClick={() => setMediaDrawerOpen(!mediaDrawerOpen)}
+                title="Медиа, файлы и закрепления"
+              >
+                📁
               </button>
 
               {(activeChat?.type === "SERVER_CHANNEL" || activeChat?.type === "SERVER_VOICE" || isGroup) && (
@@ -1309,6 +1319,14 @@ export default function WrapperMessages() {
       )}
     </>
   )}
+
+      {/* Боковая шторка медиа, файлов и закрепленных сообщений */}
+      <ChannelMediaDrawer
+        isOpen={mediaDrawerOpen}
+        onClose={() => setMediaDrawerOpen(false)}
+        messages={messages || []}
+        onImageClick={(url) => setFullscreenImage(url)}
+      />
 
       {/* Лайтбокс просмотрщика фото на весь экран */}
       {fullscreenImage && (

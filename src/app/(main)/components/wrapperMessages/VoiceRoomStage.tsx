@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import styles from "./voiceRoomStage.module.css";
 import { ChannelUser } from "@/store/modules/callStore";
-import { useUserStore, useCallStore } from "@/store";
+import { useUserStore, useCallStore, useSocketStore } from "@/store";
 import UserActionPopover, { TargetUserAction } from "../userActionPopover/UserActionPopover";
 import {
   joinMediasoupRoom,
@@ -109,10 +109,32 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
   onToggleViewMode,
 }) => {
   const { user_id, username: myUsername, setProfileModalOpen } = useUserStore();
-  const { voiceConnectionState, speakingPeers } = useCallStore();
+  const { voiceConnectionState, speakingPeers, raisedHands, floatingReactions, setRaisedHand, addFloatingReaction } = useCallStore();
+  const { sendMessage } = useSocketStore();
 
   const [selectedUserAction, setSelectedUserAction] = useState<TargetUserAction | null>(null);
   const [userActionPos, setUserActionPos] = useState<{ top: number; left: number } | null>(null);
+  const [showReactionsPicker, setShowReactionsPicker] = useState(false);
+
+  const myHandRaised = !!(user_id && raisedHands[String(user_id)]);
+
+  const toggleRaiseHand = () => {
+    const nextState = !myHandRaised;
+    if (user_id) {
+      setRaisedHand(String(user_id), nextState);
+      sendMessage("voice:raiseHand", { conversationId, isRaised: nextState });
+    }
+  };
+
+  const sendReaction = (emoji: string) => {
+    if (user_id) {
+      addFloatingReaction(String(user_id), emoji);
+      sendMessage("voice:reaction", { conversationId, emoji });
+      setShowReactionsPicker(false);
+    }
+  };
+
+  const VOICE_EMOJIS = ["❤️", "🔥", "👏", "🎉", "😂", "👍", "🚀", "💯"];
 
   // Merge participants with local user if in room and not yet listed
   const allUsers = [...participants];
@@ -181,35 +203,51 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                 : user.hasVideo;
               const userMuted = isMe ? isMicMuted : user.hasAudio === false;
               const isSpeaking = isMe ? !!speakingPeers["local"] : !!speakingPeers[String(user.id)];
+              const isHandUp = !!raisedHands[String(user.id)];
+              const userReactions = floatingReactions.filter((r) => r.peerId === String(user.id));
               const remoteStream = !isMe ? remoteVideoStreams[String(user.id)] : null;
 
               if (isMe && localVideoStream && hasVideo) {
                 return (
-                  <VideoTile
-                    key={user.id}
-                    stream={localVideoStream}
-                    username={`${user.username} (Вы)`}
-                    isMe={true}
-                    isMuted={isMicMuted}
-                  />
+                  <div key={user.id} style={{ position: "relative" }}>
+                    <VideoTile
+                      stream={localVideoStream}
+                      username={`${user.username} (Вы)`}
+                      isMe={true}
+                      isMuted={isMicMuted}
+                    />
+                    {isHandUp && <div className={styles.handRaisedBadge}>✋</div>}
+                    {userReactions.map((r) => (
+                      <div key={r.id} className={styles.floatingReaction}>
+                        {r.emoji}
+                      </div>
+                    ))}
+                  </div>
                 );
               }
 
               if (!isMe && remoteStream) {
                 return (
-                  <VideoTile
-                    key={user.id}
-                    stream={remoteStream}
-                    username={user.username}
-                    isMe={false}
-                    isMuted={userMuted}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setUserActionPos({ top: rect.bottom + 8, left: rect.left });
-                      setSelectedUserAction(user);
-                    }}
-                  />
+                  <div key={user.id} style={{ position: "relative" }}>
+                    <VideoTile
+                      stream={remoteStream}
+                      username={user.username}
+                      isMe={false}
+                      isMuted={userMuted}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setUserActionPos({ top: rect.bottom + 8, left: rect.left });
+                        setSelectedUserAction(user);
+                      }}
+                    />
+                    {isHandUp && <div className={styles.handRaisedBadge}>✋</div>}
+                    {userReactions.map((r) => (
+                      <div key={r.id} className={styles.floatingReaction}>
+                        {r.emoji}
+                      </div>
+                    ))}
+                  </div>
                 );
               }
 
@@ -227,6 +265,14 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
                     }
                   }}
                 >
+                  {isHandUp && <div className={styles.handRaisedBadge}>✋</div>}
+
+                  {userReactions.map((r) => (
+                    <div key={r.id} className={styles.floatingReaction}>
+                      {r.emoji}
+                    </div>
+                  ))}
+
                   <div className={styles.avatarWrapper}>
                     <div
                       className={styles.largeAvatar}
@@ -256,6 +302,22 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
           </div>
         )}
       </div>
+
+      {/* Попап выбора реакций */}
+      {showReactionsPicker && isInRoom && (
+        <div className={styles.reactionPicker}>
+          {VOICE_EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              className={styles.reactionOption}
+              onClick={() => sendReaction(emoji)}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Нижняя панель управления звонком */}
       {isInRoom ? (
@@ -314,11 +376,32 @@ export const VoiceRoomStage: React.FC<VoiceRoomStageProps> = ({
 
           <button
             type="button"
+            className={`${styles.ctrlBtn} ${myHandRaised ? styles.active : ""}`}
+            onClick={toggleRaiseHand}
+            title={myHandRaised ? "Опустить руку" : "Поднять руку"}
+            style={{ background: myHandRaised ? "rgba(245, 158, 11, 0.2)" : undefined, borderColor: myHandRaised ? "#f59e0b" : undefined, color: myHandRaised ? "#f59e0b" : undefined }}
+          >
+            <span>✋</span>
+            <span>{myHandRaised ? "Рука поднята" : "Поднять руку"}</span>
+          </button>
+
+          <button
+            type="button"
+            className={styles.ctrlBtn}
+            onClick={() => setShowReactionsPicker(!showReactionsPicker)}
+            title="Отправить реакцию"
+          >
+            <span>🎉</span>
+            <span>Реакция</span>
+          </button>
+
+          <button
+            type="button"
             className={styles.ctrlBtn}
             onClick={() => setProfileModalOpen(true, "voice")}
             title="Настройки микрофона и динамика"
           >
-            ⚙️ Настройки
+            ⚙️
           </button>
 
           <button

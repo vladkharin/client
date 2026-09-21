@@ -340,6 +340,85 @@
   background: #dc2626;
 }
 
+.handRaisedBadge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  animation: handBounce 1s infinite alternate ease-in-out;
+  z-index: 5;
+}
+
+@keyframes handBounce {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-4px) scale(1.1); }
+}
+
+/* Floating Reactions */
+.floatingReaction {
+  position: absolute;
+  bottom: 40px;
+  font-size: 32px;
+  user-select: none;
+  pointer-events: none;
+  z-index: 20;
+  animation: floatUp 2.2s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.2);
+  }
+  75% {
+    opacity: 0.9;
+    transform: translateY(-90px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-130px) scale(0.8);
+  }
+}
+
+/* Reactions Picker Popover */
+.reactionPicker {
+  position: absolute;
+  bottom: 80px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+  border-radius: 14px;
+  padding: 8px 12px;
+  display: flex;
+  gap: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+}
+
+.reactionOption {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.reactionOption:hover {
+  transform: scale(1.3);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* АДАПТИВНОСТЬ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА */
 @media (max-width: 768px) {
   .stageBody {

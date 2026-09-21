@@ -48,6 +48,8 @@ interface CallState {
   consumers: Record<string, mediasoup.types.Consumer>;
   channelParticipants: Record<number, ChannelUser[]>; // conversationId -> users in voice channel
   speakingPeers: Record<string, boolean>; // peerId / 'local' -> boolean
+  raisedHands: Record<string, boolean>; // userId / peerId / 'local' -> boolean
+  floatingReactions: Array<{ id: string; peerId: string; emoji: string; createdAt: number }>;
 
   // Методы
   setOutgoing: (isOutgoing: boolean) => void;
@@ -56,6 +58,8 @@ interface CallState {
   setVoiceConnectionState: (state: "idle" | "connecting" | "connected" | "disconnected" | "error") => void;
   setChannelParticipants: (conversationId: number, users: ChannelUser[]) => void;
   setSpeakingPeer: (peerId: string, isSpeaking: boolean) => void;
+  setRaisedHand: (peerId: string, isRaised: boolean) => void;
+  addFloatingReaction: (peerId: string, emoji: string) => void;
 
   addRemoteParticipant: (peerId: string, producerId: string, audio: HTMLAudioElement) => void;
   removeRemoteParticipant: (producerId: string) => void;
@@ -93,6 +97,8 @@ export const useCallStore = create<CallState>()(
       consumers: {},
       channelParticipants: {},
       speakingPeers: {},
+      raisedHands: {},
+      floatingReactions: [],
 
       setOutgoing: (isOutgoing) => set({ isOutgoing }),
 
@@ -116,6 +122,30 @@ export const useCallStore = create<CallState>()(
             },
           };
         }),
+
+      setRaisedHand: (peerId, isRaised) =>
+        set((state) => ({
+          raisedHands: {
+            ...state.raisedHands,
+            [peerId]: isRaised,
+          },
+        })),
+
+      addFloatingReaction: (peerId, emoji) => {
+        const id = `${Date.now()}-${Math.random()}`;
+        set((state) => ({
+          floatingReactions: [
+            ...state.floatingReactions,
+            { id, peerId, emoji, createdAt: Date.now() },
+          ],
+        }));
+
+        setTimeout(() => {
+          set((state) => ({
+            floatingReactions: state.floatingReactions.filter((r) => r.id !== id),
+          }));
+        }, 2500);
+      },
 
       setChannelParticipants: (conversationId, users) => {
         const prevUsers = get().channelParticipants[conversationId] || [];
@@ -267,6 +297,9 @@ export const useCallStore = create<CallState>()(
           remoteParticipants: [],
           remoteVideoStreams: {},
           consumers: {},
+          speakingPeers: {},
+          raisedHands: {},
+          floatingReactions: [],
         });
       },
     }),

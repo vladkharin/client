@@ -90,5 +90,17 @@ export const CallingEvents = (socket: Socket) => {
     console.log("👋 [call:peerLeft] Пользователь вышел:", data.userId);
     useCallStore.getState().removeRemoteParticipant(String(data.userId));
   });
+
+  socket.off("voice:handRaised");
+  socket.on("voice:handRaised", (data: { conversationId: number; userId: number; isRaised: boolean }) => {
+    console.log("✋ [voice:handRaised]:", data);
+    useCallStore.getState().setRaisedHand(String(data.userId), data.isRaised);
+  });
+
+  socket.off("voice:reactionReceived");
+  socket.on("voice:reactionReceived", (data: { conversationId: number; userId: number; emoji: string }) => {
+    console.log("🎉 [voice:reactionReceived]:", data);
+    useCallStore.getState().addFloatingReaction(String(data.userId), data.emoji);
+  });
 };
 
