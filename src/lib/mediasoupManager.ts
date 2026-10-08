@@ -664,3 +664,18 @@ export const leaveMediasoupRoom = () => {
   useCallStore.getState().reset();
   useCallStore.setState({ voiceConnectionState: "disconnected" });
 };
+
+if (typeof window !== "undefined") {
+  const handleUnload = () => {
+    const { inCall, conversationId } = useCallStore.getState();
+    if (inCall && conversationId) {
+      try {
+        useSocketStore.getState().sendMessage("mediasoup:leaveRoom", { conversationId });
+      } catch {}
+      leaveMediasoupRoom();
+    }
+  };
+
+  window.addEventListener("beforeunload", handleUnload);
+  window.addEventListener("pagehide", handleUnload);
+}
