@@ -2,6 +2,7 @@ import * as mediasoup from "mediasoup-client";
 import { useSocketStore, useCallStore, useMediaSettingsStore } from "@/store";
 import { playJoinSound, playLeaveSound, playMuteSound } from "./audioSounds";
 import { reportClientError } from "./clientLogger";
+import { createProcessedAudioStream, destroyActiveAudioChain } from "./audioProcessor";
 import { toast } from "react-toastify";
 
 let device: mediasoup.types.Device | null = null;
@@ -311,13 +312,29 @@ async function produceAudio() {
       noiseSuppression,
       autoGainControl,
       deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
+      channelCount: 1,
+      sampleRate: 48000,
     };
+    (audioConstraints as any).googEchoCancellation = echoCancellation;
+    (audioConstraints as any).googNoiseSuppression = noiseSuppression;
+    (audioConstraints as any).googHighpassFilter = true;
+    (audioConstraints as any).googAutoGainControl = autoGainControl;
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-    useCallStore.getState().setLocalStream(stream);
-    registerAudioSource("local", stream);
+    const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+    
+    // Пропускаем через нейросетевой DSP пайплайн (RNNoise AI, Noise Gate, Highpass, Compressor)
+    let outgoingStream = rawStream;
+    try {
+      const { processedStream } = await createProcessedAudioStream(rawStream);
+      outgoingStream = processedStream;
+    } catch (err) {
+      console.warn("Audio processing pipeline failed, using raw stream:", err);
+    }
 
-    const track = stream.getAudioTracks()[0];
+    useCallStore.getState().setLocalStream(rawStream);
+    registerAudioSource("local", outgoingStream);
+
+    const track = outgoingStream.getAudioTracks()[0];
     if (!track || track.readyState === "ended" || !track.enabled) {
       throw new Error("Invalid audio track");
     }
@@ -328,6 +345,7 @@ async function produceAudio() {
 
     producer.on("transportclose", () => {
       unregisterAudioSource("local");
+      destroyActiveAudioChain();
       useCallStore.getState().removeProducer(producer.id);
       audioProducer = null;
     });
@@ -363,15 +381,24 @@ export async function switchAudioInput(deviceId: string) {
       noiseSuppression,
       autoGainControl,
       deviceId: deviceId && deviceId !== "default" ? { exact: deviceId } : undefined,
+      channelCount: 1,
+      sampleRate: 48000,
     };
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-    const newTrack = stream.getAudioTracks()[0];
+    const rawStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+    let outgoingStream = rawStream;
+    try {
+      const { processedStream } = await createProcessedAudioStream(rawStream);
+      outgoingStream = processedStream;
+    } catch (err) {
+      console.warn("Audio processing pipeline failed on switch, using raw stream:", err);
+    }
+    const newTrack = outgoingStream.getAudioTracks()[0];
     if (newTrack) {
       await audioProducer.replaceTrack({ track: newTrack });
       const oldStream = useCallStore.getState().localStream;
       oldStream?.getAudioTracks().forEach((t) => t.stop());
-      useCallStore.getState().setLocalStream(stream);
-      registerAudioSource("local", stream);
+      useCallStore.getState().setLocalStream(rawStream);
+      registerAudioSource("local", outgoingStream);
     }
   } catch (err) {
     console.error("Failed to switch audio input device:", err);
@@ -607,6 +634,7 @@ export const consumeProducer = async (conversationId: number, producerId: string
 
 export const leaveMediasoupRoom = () => {
   playLeaveSound();
+  destroyActiveAudioChain();
   audioProduced = false;
   audioProducer = null;
   consumedProducerIds.clear();

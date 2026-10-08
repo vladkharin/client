@@ -15,6 +15,12 @@ export default function VoiceSettingsTab() {
     echoCancellation,
     noiseSuppression,
     autoGainControl,
+    rnnoiseEnabled,
+    noiseGateEnabled,
+    noiseGateThreshold,
+    autoNoiseGate,
+    highPassFilterEnabled,
+    compressorEnabled,
     setAudioInputDeviceId,
     setAudioOutputDeviceId,
     setVideoInputDeviceId,
@@ -23,6 +29,12 @@ export default function VoiceSettingsTab() {
     setEchoCancellation,
     setNoiseSuppression,
     setAutoGainControl,
+    setRnnoiseEnabled,
+    setNoiseGateEnabled,
+    setNoiseGateThreshold,
+    setAutoNoiseGate,
+    setHighPassFilterEnabled,
+    setCompressorEnabled,
   } = useMediaSettingsStore();
 
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
@@ -382,23 +394,104 @@ export default function VoiceSettingsTab() {
 
         {/* Улучшение звука и фильтры */}
         <div className={styles.togglesGroup}>
-          <span className={styles.togglesGroupTitle}>Обработка и улучшение звука</span>
+          <span className={styles.togglesGroupTitle}>Обработка и нейросетевое шумоподавление</span>
 
+          {/* RNNoise AI */}
           <label className={styles.toggleRow}>
             <div className={styles.toggleInfo}>
-              <span className={styles.toggleTitle}>🛡️ Шумоподавление (Noise Suppression)</span>
+              <span className={styles.toggleTitle}>⚡ Нейросетевое шумоподавление RNNoise (AI)</span>
               <span className={styles.toggleDesc}>
-                Фильтрует фоновые шумы: кулеры, щелчки клавиатуры, шум комнаты.
+                Интеллектуальная нейросеть вырезает щелчки клавиатуры, клики мыши, шум кулеров и посторонние звуки.
               </span>
             </div>
             <input
               type="checkbox"
-              checked={noiseSuppression}
-              onChange={(e) => setNoiseSuppression(e.target.checked)}
+              checked={rnnoiseEnabled}
+              onChange={(e) => setRnnoiseEnabled(e.target.checked)}
               className={styles.switchInput}
             />
           </label>
 
+          {/* Noise Gate */}
+          <label className={styles.toggleRow}>
+            <div className={styles.toggleInfo}>
+              <span className={styles.toggleTitle}>🚪 Шумовой затвор (Noise Gate)</span>
+              <span className={styles.toggleDesc}>
+                Заглушает микрофон в паузах между словами для полного отсечения дыхания и фоновой тишины.
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={noiseGateEnabled}
+              onChange={(e) => setNoiseGateEnabled(e.target.checked)}
+              className={styles.switchInput}
+            />
+          </label>
+
+          {noiseGateEnabled && (
+            <div style={{ padding: "10px 14px", background: "rgba(0, 0, 0, 0.2)", borderRadius: "8px", marginTop: "4px", marginBottom: "8px" }}>
+              <label className={styles.checkboxLabel} style={{ marginBottom: "8px" }}>
+                <input
+                  type="checkbox"
+                  checked={autoNoiseGate}
+                  onChange={(e) => setAutoNoiseGate(e.target.checked)}
+                />
+                <span>Определять порог чувствительности автоматически</span>
+              </label>
+
+              {!autoNoiseGate && (
+                <div className={styles.inputGroup} style={{ marginTop: "8px" }}>
+                  <div className={styles.sliderHeader}>
+                    <label className={styles.label} style={{ fontSize: "12px" }}>Порог активации микрофона</label>
+                    <span className={styles.sliderValue} style={{ fontSize: "12px" }}>{noiseGateThreshold} dB</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-75"
+                    max="-25"
+                    step="1"
+                    value={noiseGateThreshold}
+                    onChange={(e) => setNoiseGateThreshold(Number(e.target.value))}
+                    className={styles.rangeSlider}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* High-Pass Filter */}
+          <label className={styles.toggleRow}>
+            <div className={styles.toggleInfo}>
+              <span className={styles.toggleTitle}>🎚️ Фильтр низких частот (High-Pass 80 Гц)</span>
+              <span className={styles.toggleDesc}>
+                Срезает низкочастотный гул микрофона, вибрации стола и задувания воздуха.
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={highPassFilterEnabled}
+              onChange={(e) => setHighPassFilterEnabled(e.target.checked)}
+              className={styles.switchInput}
+            />
+          </label>
+
+          {/* Compressor */}
+          <label className={styles.toggleRow}>
+            <div className={styles.toggleInfo}>
+              <span className={styles.toggleTitle}>🎛️ Компрессор голоса (Выравнивание громкости)</span>
+              <span className={styles.toggleDesc}>
+                Выравнивает тихий шепот и громкий голос, предотвращая искажения звука.
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              checked={compressorEnabled}
+              onChange={(e) => setCompressorEnabled(e.target.checked)}
+              className={styles.switchInput}
+            />
+          </label>
+
+          {/* Echo Cancellation */}
           <label className={styles.toggleRow}>
             <div className={styles.toggleInfo}>
               <span className={styles.toggleTitle}>🔊 Эхоподавление (Echo Cancellation)</span>
@@ -414,11 +507,12 @@ export default function VoiceSettingsTab() {
             />
           </label>
 
+          {/* Auto Gain Control */}
           <label className={styles.toggleRow}>
             <div className={styles.toggleInfo}>
               <span className={styles.toggleTitle}>🎚️ Авторегулировка усиления (Auto Gain)</span>
               <span className={styles.toggleDesc}>
-                Автоматически выравнивает уровень шепота и громкого голоса.
+                Автоматическое цифровое усиление сигнала браузером.
               </span>
             </div>
             <input

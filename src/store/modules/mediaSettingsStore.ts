@@ -10,6 +10,12 @@ export interface MediaSettingsState {
   echoCancellation: boolean;
   noiseSuppression: boolean;
   autoGainControl: boolean;
+  rnnoiseEnabled: boolean; // Neural Network Noise Suppression (RNNoise AI)
+  noiseGateEnabled: boolean; // Noise Gate (threshold silence)
+  noiseGateThreshold: number; // dB threshold (-80 to -20, default -45)
+  autoNoiseGate: boolean; // Auto-adjust threshold
+  highPassFilterEnabled: boolean; // Low-frequency hum cut (80Hz)
+  compressorEnabled: boolean; // Voice Dynamic Range Compression
 
   // Per-user volume and mute settings (persisted)
   userVolumes: Record<number, number>; // userId -> volume (0 - 200)
@@ -28,6 +34,12 @@ export interface MediaSettingsState {
   setEchoCancellation: (val: boolean) => void;
   setNoiseSuppression: (val: boolean) => void;
   setAutoGainControl: (val: boolean) => void;
+  setRnnoiseEnabled: (val: boolean) => void;
+  setNoiseGateEnabled: (val: boolean) => void;
+  setNoiseGateThreshold: (val: number) => void;
+  setAutoNoiseGate: (val: boolean) => void;
+  setHighPassFilterEnabled: (val: boolean) => void;
+  setCompressorEnabled: (val: boolean) => void;
   applyOutputSettings: () => void;
   applyUserVolume: (userId: number) => void;
 }
@@ -44,6 +56,12 @@ export const useMediaSettingsStore = create<MediaSettingsState>()(
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
+        rnnoiseEnabled: true,
+        noiseGateEnabled: true,
+        noiseGateThreshold: -45,
+        autoNoiseGate: true,
+        highPassFilterEnabled: true,
+        compressorEnabled: true,
         userVolumes: {},
         userMuted: {},
 
@@ -96,6 +114,12 @@ export const useMediaSettingsStore = create<MediaSettingsState>()(
         setEchoCancellation: (val) => set({ echoCancellation: val }),
         setNoiseSuppression: (val) => set({ noiseSuppression: val }),
         setAutoGainControl: (val) => set({ autoGainControl: val }),
+        setRnnoiseEnabled: (val) => set({ rnnoiseEnabled: val }),
+        setNoiseGateEnabled: (val) => set({ noiseGateEnabled: val }),
+        setNoiseGateThreshold: (val) => set({ noiseGateThreshold: Math.max(-80, Math.min(-20, val)) }),
+        setAutoNoiseGate: (val) => set({ autoNoiseGate: val }),
+        setHighPassFilterEnabled: (val) => set({ highPassFilterEnabled: val }),
+        setCompressorEnabled: (val) => set({ compressorEnabled: val }),
 
         applyUserVolume: (userId: number) => {
           if (typeof document === "undefined") return;
