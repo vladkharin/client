@@ -49,6 +49,6 @@ jobs:
             cd ~/projects/messenger-frontend &&
             tar -xzf - &&
             npm install --production --prefer-offline || true &&
-            pm2 restart messenger-client || pm2 start npm --name 'messenger-client' -- start &&
+            pm2 restart messenger-client || pm2 start npm --name 'messenger-client' -- start -- -p 3002 &&
             echo '✅ Messenger Frontend deployed successfully!'
           "
